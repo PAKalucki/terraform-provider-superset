@@ -8,6 +8,12 @@ This repository contains an in-progress [Terraform](https://www.terraform.io) pr
 - Examples (`examples/`) and generated documentation (`docs/`),
 - Miscellaneous meta files.
 
+Currently implemented resources and data sources:
+
+- `superset_database`
+- `superset_dataset`
+- `superset_chart`
+
 Tutorials for creating Terraform providers can be found on the [HashiCorp Developer](https://developer.hashicorp.com/terraform/tutorials/providers-plugin-framework) platform. _Terraform Plugin Framework specific guides are titled accordingly._
 
 ## Requirements
@@ -61,6 +67,8 @@ resource "superset_database" "warehouse" {
   })
 }
 ```
+
+Charts can be managed with `superset_chart` once a dataset exists. The chart stores `params` and optional `query_context` as JSON strings; prefer `jsonencode(...)` in Terraform configuration for both.
 
 For the local acceptance environment, the sample warehouse Postgres service is available to Superset at `warehouse:5432`.
 

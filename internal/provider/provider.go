@@ -128,6 +128,7 @@ func (p *SupersetProvider) Resources(ctx context.Context) []func() resource.Reso
 	return []func() resource.Resource{
 		NewDatabaseResource,
 		NewDatasetResource,
+		NewChartResource,
 		NewExampleResource,
 	}
 }
@@ -142,6 +143,7 @@ func (p *SupersetProvider) DataSources(ctx context.Context) []func() datasource.
 	return []func() datasource.DataSource{
 		NewDatabaseDataSource,
 		NewDatasetDataSource,
+		NewChartDataSource,
 		NewExampleDataSource,
 	}
 }

@@ -54,15 +54,15 @@
 - [x] Commit dataset resource changes with a conventional commit
 
 ## Phase 5: Chart Resource
-- [ ] Create `superset_chart` resource schema
-- [ ] Implement CRUD operations for charts
-- [ ] Add support for chart parameters (viz_type, query context, etc.)
-- [ ] Create `superset_chart` data source
-- [ ] Write unit tests for chart resource
-- [ ] Write acceptance tests for chart resource against the docker-compose test environment
-- [ ] Run chart resource acceptance tests against the docker-compose test environment
-- [ ] Document chart resource with examples
-- [ ] Commit chart resource changes with a conventional commit
+- [x] Create `superset_chart` resource schema
+- [x] Implement CRUD operations for charts
+- [x] Add support for chart parameters (viz_type, query context, etc.)
+- [x] Create `superset_chart` data source
+- [x] Write unit tests for chart resource
+- [x] Write acceptance tests for chart resource against the docker-compose test environment
+- [x] Run chart resource acceptance tests against the docker-compose test environment
+- [x] Document chart resource with examples
+- [x] Commit chart resource changes with a conventional commit
 
 ## Phase 6: Dashboard Resource
 - [ ] Create `superset_dashboard` resource schema
