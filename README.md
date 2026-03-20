@@ -14,6 +14,9 @@ Currently implemented resources and data sources:
 - `superset_dataset`
 - `superset_chart`
 - `superset_dashboard`
+- `superset_role`
+- `superset_role_permission`
+- `superset_permission` data source
 
 Tutorials for creating Terraform providers can be found on the [HashiCorp Developer](https://developer.hashicorp.com/terraform/tutorials/providers-plugin-framework) platform. _Terraform Plugin Framework specific guides are titled accordingly._
 
@@ -72,6 +75,8 @@ resource "superset_database" "warehouse" {
 Charts can be managed with `superset_chart` once a dataset exists. The chart stores `params` and optional `query_context` as JSON strings; prefer `jsonencode(...)` in Terraform configuration for both.
 
 Dashboards can be managed with `superset_dashboard` using `chart_ids` for simple chart associations, or `position_json` when you need to control the exact Superset layout JSON.
+
+Roles can be managed with `superset_role`, while `superset_role_permission` manages the full authoritative permission set for one role. The `superset_permission` data source resolves stable permission-view-menu identifiers for those assignments.
 
 For the local acceptance environment, the sample warehouse Postgres service is available to Superset at `warehouse:5432`.
 

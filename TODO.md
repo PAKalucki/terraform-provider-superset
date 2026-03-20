@@ -77,15 +77,15 @@
 - [x] Commit dashboard resource changes with a conventional commit
 
 ## Phase 7: Role & Permission Resources
-- [ ] Create `superset_role` resource schema
-- [ ] Implement CRUD operations for roles
-- [ ] Create `superset_role_permission` resource for role-permission assignments
-- [ ] Create data sources for roles and permissions
-- [ ] Write unit tests for role and permission resources
-- [ ] Write acceptance tests for role and permission resources against the docker-compose test environment
-- [ ] Run role and permission acceptance tests against the docker-compose test environment
-- [ ] Document role and permission resources
-- [ ] Commit role and permission resource changes with a conventional commit
+- [x] Create `superset_role` resource schema
+- [x] Implement CRUD operations for roles
+- [x] Create `superset_role_permission` resource for role-permission assignments
+- [x] Create data sources for roles and permissions
+- [x] Write unit tests for role and permission resources
+- [x] Write acceptance tests for role and permission resources against the docker-compose test environment
+- [x] Run role and permission acceptance tests against the docker-compose test environment
+- [x] Document role and permission resources
+- [x] Commit role and permission resource changes with a conventional commit
 
 ## Phase 8: User Resource (Optional - depends on Superset auth backend)
 - [ ] Evaluate user management API availability in Superset 6.0.0
@@ -125,3 +125,7 @@
 - [ ] Update CHANGELOG.md
 - [ ] Commit final polish changes with a conventional commit
 - [ ] Tag initial release version
+
+## Phase 12: Github Actions Workflow
+- [ ] Add test github actions workflow to run tests on every PR
+- [ ] Add release github actions workflow to run on tag starting with v
