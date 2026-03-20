@@ -1,20 +1,98 @@
-version: '3.7'
 services:
-  api:
-    image: "hashicorpdemoapp/product-api:v0.0.22"
-    ports:
-      - "19090:9090"
-    volumes:
-      - ./conf.json:/config/config.json
-    environment:
-      CONFIG_FILE: '/config/config.json'
-    depends_on:
-      - db
   db:
-    image: "hashicorpdemoapp/product-api-db:v0.0.22"
+    image: postgres:16
+    container_name: superset-provider-db
+    environment:
+      POSTGRES_DB: superset
+      POSTGRES_USER: superset
+      POSTGRES_PASSWORD: superset
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U superset -d superset"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    volumes:
+      - superset_metadata:/var/lib/postgresql/data
+
+  warehouse:
+    image: postgres:16
+    container_name: superset-provider-warehouse
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: analytics
+      POSTGRES_PASSWORD: analytics
     ports:
       - "15432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analytics -d analytics"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    volumes:
+      - warehouse_data:/var/lib/postgresql/data
+      - ./warehouse-init.sql:/docker-entrypoint-initdb.d/warehouse-init.sql:ro
+
+  superset-init:
+    image: apache/superset:6.0.0-dev
+    container_name: superset-provider-init
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: &superset-env
+      SUPERSET_SECRET_KEY: terraform-provider-superset-acceptance-secret-key
+      SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+      SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://superset:superset@db:5432/superset
+      SUPERSET_ADMIN_USERNAME: admin
+      SUPERSET_ADMIN_PASSWORD: admin
+      SUPERSET_ADMIN_EMAIL: admin@example.com
+      SUPERSET_ADMIN_FIRSTNAME: Terraform
+      SUPERSET_ADMIN_LASTNAME: Provider
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py:ro
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        superset db upgrade
+        superset fab create-admin \
+          --username "$${SUPERSET_ADMIN_USERNAME}" \
+          --firstname "$${SUPERSET_ADMIN_FIRSTNAME}" \
+          --lastname "$${SUPERSET_ADMIN_LASTNAME}" \
+          --email "$${SUPERSET_ADMIN_EMAIL}" \
+          --password "$${SUPERSET_ADMIN_PASSWORD}" || true
+        superset init
+    restart: "no"
+
+  superset:
+    image: apache/superset:6.0.0-dev
+    container_name: superset-provider-app
+    depends_on:
+      db:
+        condition: service_healthy
+      superset-init:
+        condition: service_completed_successfully
     environment:
-      POSTGRES_DB: 'products'
-      POSTGRES_USER: 'postgres'
-      POSTGRES_PASSWORD: 'password'
+      <<: *superset-env
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8088/health', timeout=5)"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        superset run -h 0.0.0.0 -p 8088
+
+volumes:
+  superset_metadata:
+  warehouse_data:

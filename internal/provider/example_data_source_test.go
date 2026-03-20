@@ -4,6 +4,7 @@
 package provider
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -19,12 +20,12 @@ func TestAccExampleDataSource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Read testing
 			{
-				Config: testAccExampleDataSourceConfig,
+				Config: testAccExampleDataSourceConfig(),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue(
 						"data.superset_example.test",
 						tfjsonpath.New("id"),
-						knownvalue.StringExact("example-id"),
+						knownvalue.StringExact(testAccExpectedDatabaseEngine()),
 					),
 				},
 			},
@@ -32,13 +33,12 @@ func TestAccExampleDataSource(t *testing.T) {
 	})
 }
 
-const testAccExampleDataSourceConfig = `
-provider "superset" {
-  endpoint     = "https://superset.example.com"
-  access_token = "token"
-}
+func testAccExampleDataSourceConfig() string {
+	return fmt.Sprintf(`
+%s
 
 data "superset_example" "test" {
   configurable_attribute = "example"
 }
-`
+`, testAccProviderConfig())
+}

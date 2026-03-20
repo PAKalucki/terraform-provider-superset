@@ -39,13 +39,10 @@ func TestAccExampleEphemeralResource(t *testing.T) {
 
 func testAccExampleEphemeralResourceConfig(configurableAttribute string) string {
 	return fmt.Sprintf(`
-provider "superset" {
-  endpoint     = "https://superset.example.com"
-  access_token = "token"
-}
+%s
 
 ephemeral "superset_example" "test" {
-  configurable_attribute = %[1]q
+  configurable_attribute = %[2]q
 }
 
 provider "echo" {
@@ -53,5 +50,5 @@ provider "echo" {
 }
 
 resource "echo" "test" {}
-`, configurableAttribute)
+`, testAccProviderConfig(), configurableAttribute)
 }

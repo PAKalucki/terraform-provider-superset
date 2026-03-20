@@ -51,10 +51,33 @@ To compile the provider, run `go install`. This will build the provider and put 
 
 To generate or update documentation, run `make generate`.
 
-In order to run the full suite of Acceptance tests, run `make testacc`.
+## Acceptance Test Environment
 
-*Note:* Acceptance tests create real resources, and often cost money to run.
+The repository includes a local Superset 6.0.0 docker-compose environment for acceptance tests.
+
+Default test environment settings:
+
+- Superset API: `http://127.0.0.1:8088`
+- Admin username: `admin`
+- Admin password: `admin`
+- Sample warehouse Postgres: `localhost:15432`
+- Sample warehouse credentials: `analytics` / `analytics`
+
+Useful commands:
 
 ```shell
+make testenv-up
+make testenv-token
 make testacc
+make testenv-down
+make testenv-reset
 ```
+
+Environment variables used by acceptance tests:
+
+- `SUPERSET_ENDPOINT`
+- `SUPERSET_USERNAME`
+- `SUPERSET_PASSWORD`
+- `SUPERSET_ACCESS_TOKEN` (optional alternative to username/password)
+
+`make testacc` starts the local docker-compose environment if needed, waits for `/health` plus API login readiness, and then runs the Go acceptance suite with the default local credentials.
