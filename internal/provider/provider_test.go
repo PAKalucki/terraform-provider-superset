@@ -42,30 +42,10 @@ var testAccProtoV6ProviderFactoriesWithEcho = map[string]func() (tfprotov6.Provi
 func testAccPreCheck(t *testing.T) {
 	t.Helper()
 
-	endpoint := os.Getenv(testAccSupersetEndpointEnv)
-	if endpoint == "" {
+	if os.Getenv(testAccSupersetEndpointEnv) == "" {
 		t.Fatalf("%s must be set for acceptance tests", testAccSupersetEndpointEnv)
 	}
-
-	accessToken := os.Getenv(testAccSupersetAccessTokenEnv)
-	username := os.Getenv(testAccSupersetUsernameEnv)
-	password := os.Getenv(testAccSupersetPasswordEnv)
-
-	if accessToken == "" && (username == "" || password == "") {
-		t.Fatalf(
-			"set %s or both %s and %s for acceptance tests",
-			testAccSupersetAccessTokenEnv,
-			testAccSupersetUsernameEnv,
-			testAccSupersetPasswordEnv,
-		)
-	}
-
-	client, err := supersetclient.New(supersetclient.Config{
-		Endpoint:    endpoint,
-		Username:    username,
-		Password:    password,
-		AccessToken: accessToken,
-	})
+	client, err := testAccSupersetClient()
 	if err != nil {
 		t.Fatalf("failed to configure Superset test client: %v", err)
 	}
@@ -74,6 +54,29 @@ func testAccPreCheck(t *testing.T) {
 	if err := client.Get(context.Background(), "/api/v1/database/available/", &availableDatabasesResponse); err != nil {
 		t.Fatalf("failed to reach Superset acceptance environment: %v", err)
 	}
+}
+
+func testAccSupersetClient() (*supersetclient.Client, error) {
+	endpoint := os.Getenv(testAccSupersetEndpointEnv)
+	accessToken := os.Getenv(testAccSupersetAccessTokenEnv)
+	username := os.Getenv(testAccSupersetUsernameEnv)
+	password := os.Getenv(testAccSupersetPasswordEnv)
+
+	if accessToken == "" && (username == "" || password == "") {
+		return nil, fmt.Errorf(
+			"set %s or both %s and %s for acceptance tests",
+			testAccSupersetAccessTokenEnv,
+			testAccSupersetUsernameEnv,
+			testAccSupersetPasswordEnv,
+		)
+	}
+
+	return supersetclient.New(supersetclient.Config{
+		Endpoint:    endpoint,
+		Username:    username,
+		Password:    password,
+		AccessToken: accessToken,
+	})
 }
 
 func testAccProviderConfig() string {

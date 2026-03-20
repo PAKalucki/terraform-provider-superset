@@ -126,6 +126,7 @@ func (p *SupersetProvider) Configure(ctx context.Context, req provider.Configure
 
 func (p *SupersetProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
+		NewDatabaseResource,
 		NewExampleResource,
 	}
 }
@@ -138,6 +139,7 @@ func (p *SupersetProvider) EphemeralResources(ctx context.Context) []func() ephe
 
 func (p *SupersetProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		NewDatabaseDataSource,
 		NewExampleDataSource,
 	}
 }

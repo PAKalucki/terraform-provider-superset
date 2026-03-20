@@ -32,14 +32,14 @@
 - [x] Commit acceptance test environment changes with a conventional commit
 
 ## Phase 3: Database Connection Resource
-- [ ] Create `superset_database` resource schema
-- [ ] Implement CRUD operations for database connections
-- [ ] Add support for database connection parameters (SQLAlchemy URI, extra configs)
-- [ ] Create `superset_database` data source for reading existing connections
-- [ ] Write unit tests for database resource
-- [ ] Write acceptance tests for database resource against the docker-compose test environment
-- [ ] Run database resource acceptance tests against the docker-compose test environment
-- [ ] Document database resource with examples
+- [x] Create `superset_database` resource schema
+- [x] Implement CRUD operations for database connections
+- [x] Add support for database connection parameters (SQLAlchemy URI, extra configs)
+- [x] Create `superset_database` data source for reading existing connections
+- [x] Write unit tests for database resource
+- [x] Write acceptance tests for database resource against the docker-compose test environment
+- [x] Run database resource acceptance tests against the docker-compose test environment
+- [x] Document database resource with examples
 - [ ] Commit database resource changes with a conventional commit
 
 ## Phase 4: Dataset Resource
