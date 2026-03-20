@@ -2,13 +2,14 @@
 
 _This provider is built on the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework). See [Which SDK Should I Use?](https://developer.hashicorp.com/terraform/plugin/framework-benefits) in the Terraform documentation for additional information._
 
-This repository contains an in-progress [Terraform](https://www.terraform.io) provider for Apache Superset, including:
+This repository contains a [Terraform](https://www.terraform.io) provider for Apache Superset, including:
 
-- A resource and a data source (`internal/provider/`),
-- Examples (`examples/`) and generated documentation (`docs/`),
-- Miscellaneous meta files.
+- Provider implementation under `internal/provider/`
+- Resource and data source documentation under `docs/`
+- Runnable examples under `examples/`
+- A local Superset 6 acceptance environment under `docker_compose/`
 
-Currently implemented resources and data sources:
+Implemented resources:
 
 - `superset_database`
 - `superset_dataset`
@@ -20,6 +21,14 @@ Currently implemented resources and data sources:
 - `superset_saved_query`
 - `superset_css_template`
 - `superset_annotation_layer`
+
+Implemented data sources:
+
+- `superset_database`
+- `superset_dataset`
+- `superset_chart`
+- `superset_dashboard`
+- `superset_role`
 - `superset_permission` data source
 
 Tutorials for creating Terraform providers can be found on the [HashiCorp Developer](https://developer.hashicorp.com/terraform/tutorials/providers-plugin-framework) platform. _Terraform Plugin Framework specific guides are titled accordingly._
@@ -88,6 +97,8 @@ Additional supported resources include `superset_saved_query`, `superset_css_tem
 
 For the local acceptance environment, the sample warehouse Postgres service is available to Superset at `warehouse:5432`.
 
+Import is supported for all managed resources. Resource-specific import commands and caveats are documented under [docs/resources](/home/prka/workspace/terraform-provider-superset/docs/resources).
+
 ## Developing the Provider
 
 If you wish to work on the provider, you'll first need [Go](http://www.golang.org) installed on your machine (see [Requirements](#requirements) above).
@@ -95,6 +106,11 @@ If you wish to work on the provider, you'll first need [Go](http://www.golang.or
 To compile the provider, run `go install`. This will build the provider and put the provider binary in the `$GOPATH/bin` directory.
 
 To generate or update documentation, run `make generate`.
+
+Comprehensive end-to-end examples are available in:
+
+- `examples/stacks/analytics_workspace`
+- `examples/stacks/access_control`
 
 ## Acceptance Test Environment
 

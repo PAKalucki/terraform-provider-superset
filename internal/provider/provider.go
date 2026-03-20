@@ -10,11 +10,8 @@ import (
 
 	supersetclient "terraform-provider-superset/internal/client"
 
-	"github.com/hashicorp/terraform-plugin-framework/action"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
-	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
@@ -25,9 +22,6 @@ import (
 // Ensure SupersetProvider satisfies various provider interfaces.
 var _ provider.Provider = &SupersetProvider{}
 var _ provider.ProviderWithValidateConfig = &SupersetProvider{}
-var _ provider.ProviderWithFunctions = &SupersetProvider{}
-var _ provider.ProviderWithEphemeralResources = &SupersetProvider{}
-var _ provider.ProviderWithActions = &SupersetProvider{}
 
 // SupersetProvider defines the provider implementation.
 type SupersetProvider struct {
@@ -136,13 +130,6 @@ func (p *SupersetProvider) Resources(ctx context.Context) []func() resource.Reso
 		NewSavedQueryResource,
 		NewCSSTemplateResource,
 		NewAnnotationLayerResource,
-		NewExampleResource,
-	}
-}
-
-func (p *SupersetProvider) EphemeralResources(ctx context.Context) []func() ephemeral.EphemeralResource {
-	return []func() ephemeral.EphemeralResource{
-		NewExampleEphemeralResource,
 	}
 }
 
@@ -154,19 +141,6 @@ func (p *SupersetProvider) DataSources(ctx context.Context) []func() datasource.
 		NewDashboardDataSource,
 		NewRoleDataSource,
 		NewPermissionDataSource,
-		NewExampleDataSource,
-	}
-}
-
-func (p *SupersetProvider) Functions(ctx context.Context) []func() function.Function {
-	return []func() function.Function{
-		NewExampleFunction,
-	}
-}
-
-func (p *SupersetProvider) Actions(ctx context.Context) []func() action.Action {
-	return []func() action.Action{
-		NewExampleAction,
 	}
 }
 
