@@ -11,6 +11,8 @@ Manages a Superset physical dataset backed by a Superset database connection.
 
 When `columns` or `metrics` are configured, they are authoritative and replace the corresponding collection in Superset. Omit either attribute to leave that collection unmanaged by Terraform.
 
+Omitting an optional scalar attribute, or omitting an optional field inside a managed `columns` or `metrics` item, makes Terraform clear that value on the next apply and reconcile state from Superset.
+
 ## Example Usage
 
 ```terraform

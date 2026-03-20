@@ -9,6 +9,8 @@ description: |-
 
 Reads an existing Superset dataset by `id`, or by `database_id` with `table_name` and optional `schema`.
 
+When `schema` is omitted, the lookup matches a unique dataset by `database_id` and `table_name`. Configure `schema` to disambiguate duplicate table names.
+
 ## Example Usage
 
 ```terraform

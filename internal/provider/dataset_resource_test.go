@@ -51,6 +51,21 @@ func TestAccDatasetResource(t *testing.T) {
 					resource.TestCheckResourceAttr("superset_dataset.test", "metrics.0.verbose_name", "Event Rows"),
 				),
 			},
+			{
+				Config: testAccDatasetResourceClearingConfig(databaseName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckNoResourceAttr("superset_dataset.test", "description"),
+					resource.TestCheckNoResourceAttr("superset_dataset.test", "main_dttm_col"),
+					resource.TestCheckNoResourceAttr("superset_dataset.test", "filter_select_enabled"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "columns.#", "3"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "columns.0.column_name", "id"),
+					resource.TestCheckNoResourceAttr("superset_dataset.test", "columns.0.verbose_name"),
+					resource.TestCheckNoResourceAttr("superset_dataset.test", "columns.0.filterable"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "metrics.#", "1"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "metrics.0.metric_name", "event_rows"),
+					resource.TestCheckNoResourceAttr("superset_dataset.test", "metrics.0.verbose_name"),
+				),
+			},
 		},
 	})
 }
@@ -157,4 +172,51 @@ resource "superset_dataset" "test" {
   ]
 }
 `, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI(), description, idVerboseName, eventNameColumn, metricName, metricVerboseName)
+}
+
+func testAccDatasetResourceClearingConfig(databaseName string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "superset_database" "test" {
+  database_name  = %q
+  sqlalchemy_uri = %q
+}
+
+resource "superset_dataset" "test" {
+  database_id = superset_database.test.id
+  schema      = "analytics"
+  table_name  = "events"
+
+  columns = [
+    {
+      column_name = "id"
+      groupby     = true
+      is_active   = true
+      type        = "INTEGER"
+    },
+    {
+      column_name = "event_name"
+      groupby     = true
+      is_active   = true
+      type        = "TEXT"
+    },
+    {
+      column_name = "created_at"
+      groupby     = true
+      is_active   = true
+      is_dttm     = true
+      type        = "TIMESTAMP"
+    }
+  ]
+
+  metrics = [
+    {
+      metric_name = "event_rows"
+      expression  = "COUNT(*)"
+      metric_type = "count"
+    }
+  ]
+}
+`, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI())
 }

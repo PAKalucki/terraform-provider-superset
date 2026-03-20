@@ -174,6 +174,21 @@ func (r *DatabaseResource) Configure(ctx context.Context, req resource.Configure
 
 func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data databaseModel
+	var createdID int64
+	persistedState := false
+
+	defer func() {
+		if createdID == 0 || persistedState {
+			return
+		}
+
+		if err := r.client.DeleteDatabase(ctx, createdID); err != nil && !isSupersetNotFoundError(err) {
+			resp.Diagnostics.AddWarning(
+				"Unable to Roll Back Superset Database After Create Failure",
+				fmt.Sprintf("The provider created Superset database %d but could not delete it after the Terraform create operation failed: %v", createdID, err),
+			)
+		}
+	}()
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
@@ -207,6 +222,8 @@ func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
+	createdID = created.ID
+
 	database, err := loadDatabase(ctx, r.client, created.ID)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -224,6 +241,11 @@ func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	persistedState = true
 }
 
 func (r *DatabaseResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
