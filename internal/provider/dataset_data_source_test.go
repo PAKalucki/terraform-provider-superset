@@ -84,7 +84,6 @@ resource "superset_dataset" "test" {
 
 data "superset_dataset" "lookup" {
   database_id = superset_dataset.test.database_id
-  schema      = superset_dataset.test.schema
   table_name  = superset_dataset.test.table_name
 }
 `, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI())

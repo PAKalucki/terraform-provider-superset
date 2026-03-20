@@ -145,15 +145,22 @@ func expandDatasetUpdateRequest(ctx context.Context, data datasetModel, current 
 	}
 
 	request := supersetclient.DatasetUpdateRequest{
-		DatabaseID:           databaseID,
-		TableName:            tableName,
-		Schema:               stringPointerValue(data.Schema),
-		Description:          stringPointerValue(data.Description),
-		MainDttmCol:          stringPointerValue(data.MainDttmCol),
-		FilterSelectEnabled:  boolPointerValue(data.FilterSelectEnabled),
-		NormalizeColumns:     boolPointerValue(data.NormalizeColumns),
-		AlwaysFilterMainDttm: boolPointerValue(data.AlwaysFilterMainDttm),
-		CacheTimeout:         int64PointerValue(data.CacheTimeout),
+		DatabaseID:                  databaseID,
+		TableName:                   tableName,
+		Schema:                      stringPointerValue(data.Schema),
+		Description:                 stringPointerValue(data.Description),
+		MainDttmCol:                 stringPointerValue(data.MainDttmCol),
+		FilterSelectEnabled:         datasetBoolUpdateValue(data.FilterSelectEnabled, current.FilterSelectEnabled),
+		NormalizeColumns:            datasetBoolUpdateValue(data.NormalizeColumns, current.NormalizeColumns),
+		AlwaysFilterMainDttm:        datasetBoolUpdateValue(data.AlwaysFilterMainDttm, current.AlwaysFilterMainDttm),
+		CacheTimeout:                int64PointerValue(data.CacheTimeout),
+		IncludeSchema:               includeManagedString(data.Schema, current.Schema),
+		IncludeDescription:          includeManagedString(data.Description, current.Description),
+		IncludeMainDttmCol:          includeManagedString(data.MainDttmCol, current.MainDttmCol),
+		IncludeFilterSelectEnabled:  includeManagedBool(data.FilterSelectEnabled, current.FilterSelectEnabled),
+		IncludeNormalizeColumns:     includeManagedBool(data.NormalizeColumns, current.NormalizeColumns),
+		IncludeAlwaysFilterMainDttm: includeManagedBool(data.AlwaysFilterMainDttm, current.AlwaysFilterMainDttm),
+		IncludeCacheTimeout:         includeManagedInt64(data.CacheTimeout, current.CacheTimeout),
 	}
 
 	if !data.Columns.IsNull() && !data.Columns.IsUnknown() {
@@ -193,13 +200,13 @@ func flattenDatasetResourceModel(ctx context.Context, current datasetModel, remo
 		TableName:    stringTypeValue(remote.TableName),
 	}
 
-	state.Schema = managedStringValue(current.Schema, remote.Schema)
-	state.Description = managedStringValue(current.Description, remote.Description)
-	state.MainDttmCol = managedStringValue(current.MainDttmCol, remote.MainDttmCol)
-	state.FilterSelectEnabled = managedBoolValue(current.FilterSelectEnabled, remote.FilterSelectEnabled)
-	state.NormalizeColumns = managedBoolValue(current.NormalizeColumns, remote.NormalizeColumns)
-	state.AlwaysFilterMainDttm = managedBoolValue(current.AlwaysFilterMainDttm, remote.AlwaysFilterMainDttm)
-	state.CacheTimeout = managedInt64Value(current.CacheTimeout, remote.CacheTimeout)
+	state.Schema = stringTypeValue(remote.Schema)
+	state.Description = stringTypeValue(remote.Description)
+	state.MainDttmCol = stringTypeValue(remote.MainDttmCol)
+	state.FilterSelectEnabled = managedDatasetBoolValue(current.FilterSelectEnabled, remote.FilterSelectEnabled)
+	state.NormalizeColumns = managedDatasetBoolValue(current.NormalizeColumns, remote.NormalizeColumns)
+	state.AlwaysFilterMainDttm = managedDatasetBoolValue(current.AlwaysFilterMainDttm, remote.AlwaysFilterMainDttm)
+	state.CacheTimeout = int64TypeValue(remote.CacheTimeout)
 
 	columns, columnDiags := flattenManagedDatasetColumns(ctx, current.Columns, remote.Columns)
 	diags.Append(columnDiags...)
@@ -285,22 +292,34 @@ func expandDatasetColumns(columns []datasetColumnModel, current []supersetclient
 			continue
 		}
 
+		currentColumn, ok := currentByName[columnName]
+
 		request := supersetclient.DatasetColumn{
 			ColumnName:       columnName,
 			VerboseName:      stringValue(column.VerboseName),
 			Description:      stringValue(column.Description),
 			Expression:       stringValue(column.Expression),
-			Filterable:       boolPointerValue(column.Filterable),
-			Groupby:          boolPointerValue(column.Groupby),
-			IsActive:         boolPointerValue(column.IsActive),
-			IsDttm:           boolPointerValue(column.IsDttm),
+			Filterable:       datasetBoolUpdateValue(column.Filterable, currentColumn.Filterable),
+			Groupby:          datasetBoolUpdateValue(column.Groupby, currentColumn.Groupby),
+			IsActive:         datasetBoolUpdateValue(column.IsActive, currentColumn.IsActive),
+			IsDttm:           datasetBoolUpdateValue(column.IsDttm, currentColumn.IsDttm),
 			Type:             stringValue(column.Type),
 			PythonDateFormat: stringValue(column.PythonDateFormat),
 		}
 
-		if currentColumn, ok := currentByName[columnName]; ok {
+		if ok {
 			request.ID = currentColumn.ID
 		}
+
+		request.IncludeVerboseName = includeManagedString(column.VerboseName, currentColumn.VerboseName)
+		request.IncludeDescription = includeManagedString(column.Description, currentColumn.Description)
+		request.IncludeExpression = includeManagedString(column.Expression, currentColumn.Expression)
+		request.IncludeFilterable = includeManagedBool(column.Filterable, currentColumn.Filterable)
+		request.IncludeGroupby = includeManagedBool(column.Groupby, currentColumn.Groupby)
+		request.IncludeIsActive = includeManagedBool(column.IsActive, currentColumn.IsActive)
+		request.IncludeIsDttm = includeManagedBool(column.IsDttm, currentColumn.IsDttm)
+		request.IncludeType = includeManagedString(column.Type, currentColumn.Type)
+		request.IncludePythonDateFormat = includeManagedString(column.PythonDateFormat, currentColumn.PythonDateFormat)
 
 		requests = append(requests, request)
 	}
@@ -351,9 +370,16 @@ func expandDatasetMetrics(metrics []datasetMetricModel, current []supersetclient
 			WarningText: stringValue(metric.WarningText),
 		}
 
-		if currentMetric, ok := currentByName[metricName]; ok {
+		currentMetric, ok := currentByName[metricName]
+		if ok {
 			request.ID = currentMetric.ID
 		}
+
+		request.IncludeMetricType = includeManagedString(metric.MetricType, currentMetric.MetricType)
+		request.IncludeVerboseName = includeManagedString(metric.VerboseName, currentMetric.VerboseName)
+		request.IncludeDescription = includeManagedString(metric.Description, currentMetric.Description)
+		request.IncludeD3Format = includeManagedString(metric.D3Format, currentMetric.D3Format)
+		request.IncludeWarningText = includeManagedString(metric.WarningText, currentMetric.WarningText)
 
 		requests = append(requests, request)
 	}
@@ -386,15 +412,15 @@ func flattenManagedDatasetColumns(ctx context.Context, current types.List, remot
 
 		columns = append(columns, datasetColumnModel{
 			ColumnName:       stringTypeValue(remoteColumn.ColumnName),
-			VerboseName:      managedStringValue(currentColumn.VerboseName, remoteColumn.VerboseName),
-			Description:      managedStringValue(currentColumn.Description, remoteColumn.Description),
-			Expression:       managedStringValue(currentColumn.Expression, remoteColumn.Expression),
-			Filterable:       managedBoolValue(currentColumn.Filterable, remoteColumn.Filterable),
-			Groupby:          managedBoolValue(currentColumn.Groupby, remoteColumn.Groupby),
-			IsActive:         managedBoolValue(currentColumn.IsActive, remoteColumn.IsActive),
-			IsDttm:           managedBoolValue(currentColumn.IsDttm, remoteColumn.IsDttm),
-			Type:             managedStringValue(currentColumn.Type, remoteColumn.Type),
-			PythonDateFormat: managedStringValue(currentColumn.PythonDateFormat, remoteColumn.PythonDateFormat),
+			VerboseName:      stringTypeValue(remoteColumn.VerboseName),
+			Description:      stringTypeValue(remoteColumn.Description),
+			Expression:       stringTypeValue(remoteColumn.Expression),
+			Filterable:       managedDatasetBoolValue(currentColumn.Filterable, remoteColumn.Filterable),
+			Groupby:          managedDatasetBoolValue(currentColumn.Groupby, remoteColumn.Groupby),
+			IsActive:         managedDatasetBoolValue(currentColumn.IsActive, remoteColumn.IsActive),
+			IsDttm:           managedDatasetBoolValue(currentColumn.IsDttm, remoteColumn.IsDttm),
+			Type:             stringTypeValue(remoteColumn.Type),
+			PythonDateFormat: stringTypeValue(remoteColumn.PythonDateFormat),
 		})
 	}
 
@@ -427,11 +453,11 @@ func flattenManagedDatasetMetrics(ctx context.Context, current types.List, remot
 		metrics = append(metrics, datasetMetricModel{
 			MetricName:  stringTypeValue(remoteMetric.MetricName),
 			Expression:  stringTypeValue(remoteMetric.Expression),
-			MetricType:  managedStringValue(currentMetric.MetricType, remoteMetric.MetricType),
-			VerboseName: managedStringValue(currentMetric.VerboseName, remoteMetric.VerboseName),
-			Description: managedStringValue(currentMetric.Description, remoteMetric.Description),
-			D3Format:    managedStringValue(currentMetric.D3Format, remoteMetric.D3Format),
-			WarningText: managedStringValue(currentMetric.WarningText, remoteMetric.WarningText),
+			MetricType:  stringTypeValue(remoteMetric.MetricType),
+			VerboseName: stringTypeValue(remoteMetric.VerboseName),
+			Description: stringTypeValue(remoteMetric.Description),
+			D3Format:    stringTypeValue(remoteMetric.D3Format),
+			WarningText: stringTypeValue(remoteMetric.WarningText),
 		})
 	}
 
@@ -485,30 +511,6 @@ func flattenDatasetMetrics(ctx context.Context, remote []supersetclient.DatasetM
 	return types.ListValueFrom(ctx, datasetMetricObjectType, metrics)
 }
 
-func managedStringValue(current types.String, remote string) types.String {
-	if current.IsNull() || current.IsUnknown() {
-		return current
-	}
-
-	return stringTypeValue(remote)
-}
-
-func managedBoolValue(current types.Bool, remote *bool) types.Bool {
-	if current.IsNull() || current.IsUnknown() {
-		return current
-	}
-
-	return boolTypeValue(remote)
-}
-
-func managedInt64Value(current types.Int64, remote *int64) types.Int64 {
-	if current.IsNull() || current.IsUnknown() {
-		return current
-	}
-
-	return int64TypeValue(remote)
-}
-
 func findDataset(ctx context.Context, client *supersetclient.Client, databaseID int64, tableName string, schemaName string) (*supersetclient.Dataset, error) {
 	datasets, err := client.ListDatasets(ctx, 1000)
 	if err != nil {
@@ -517,6 +519,7 @@ func findDataset(ctx context.Context, client *supersetclient.Client, databaseID 
 
 	normalizedTableName := strings.TrimSpace(tableName)
 	normalizedSchemaName := strings.TrimSpace(schemaName)
+	requireSchemaMatch := normalizedSchemaName != ""
 
 	var matches []supersetclient.Dataset
 
@@ -525,11 +528,11 @@ func findDataset(ctx context.Context, client *supersetclient.Client, databaseID 
 			continue
 		}
 
-		if dataset.TableName != normalizedTableName {
+		if strings.TrimSpace(dataset.TableName) != normalizedTableName {
 			continue
 		}
 
-		if strings.TrimSpace(dataset.Schema) != normalizedSchemaName {
+		if requireSchemaMatch && strings.TrimSpace(dataset.Schema) != normalizedSchemaName {
 			continue
 		}
 
@@ -538,10 +541,68 @@ func findDataset(ctx context.Context, client *supersetclient.Client, databaseID 
 
 	switch len(matches) {
 	case 0:
+		if !requireSchemaMatch {
+			return nil, fmt.Errorf("dataset %q in database %d was not found", normalizedTableName, databaseID)
+		}
+
 		return nil, fmt.Errorf("dataset %q in database %d with schema %q was not found", normalizedTableName, databaseID, normalizedSchemaName)
 	case 1:
 		return client.GetDataset(ctx, matches[0].ID)
 	default:
+		if !requireSchemaMatch {
+			return nil, fmt.Errorf("dataset %q in database %d matched %d datasets; configure `schema` to disambiguate the lookup", normalizedTableName, databaseID, len(matches))
+		}
+
 		return nil, fmt.Errorf("dataset %q in database %d with schema %q matched %d datasets", normalizedTableName, databaseID, normalizedSchemaName, len(matches))
 	}
+}
+
+func includeManagedString(plan types.String, remote string) bool {
+	if !plan.IsNull() && !plan.IsUnknown() {
+		return true
+	}
+
+	return strings.TrimSpace(remote) != ""
+}
+
+func includeManagedBool(plan types.Bool, remote *bool) bool {
+	if !plan.IsNull() && !plan.IsUnknown() {
+		return true
+	}
+
+	return remote != nil && *remote
+}
+
+func includeManagedInt64(plan types.Int64, remote *int64) bool {
+	if !plan.IsNull() && !plan.IsUnknown() {
+		return true
+	}
+
+	return remote != nil
+}
+
+func datasetBoolUpdateValue(plan types.Bool, remote *bool) *bool {
+	if !plan.IsNull() && !plan.IsUnknown() {
+		return boolPointerValue(plan)
+	}
+
+	if remote != nil && *remote {
+		value := false
+
+		return &value
+	}
+
+	return nil
+}
+
+func managedDatasetBoolValue(current types.Bool, remote *bool) types.Bool {
+	if current.IsNull() || current.IsUnknown() {
+		if remote != nil && *remote {
+			return types.BoolValue(true)
+		}
+
+		return types.BoolNull()
+	}
+
+	return boolTypeValue(remote)
 }

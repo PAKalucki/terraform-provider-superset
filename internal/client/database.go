@@ -32,6 +32,7 @@ type databaseResponse struct {
 }
 
 type databaseListResponse struct {
+	Count  int        `json:"count"`
 	Result []Database `json:"result"`
 }
 
@@ -86,16 +87,29 @@ func (c *Client) ListDatabases(ctx context.Context, pageSize int) ([]Database, e
 		pageSize = 1000
 	}
 
-	values := url.Values{}
-	values.Set("page_size", strconv.Itoa(pageSize))
+	databases := make([]Database, 0, pageSize)
 
-	var response databaseListResponse
+	for page := 0; ; page++ {
+		values := url.Values{}
+		values.Set("page", strconv.Itoa(page))
+		values.Set("page_size", strconv.Itoa(pageSize))
 
-	if err := c.Get(ctx, fmt.Sprintf("/api/v1/database/?%s", values.Encode()), &response); err != nil {
-		return nil, err
+		var response databaseListResponse
+
+		if err := c.Get(ctx, fmt.Sprintf("/api/v1/database/?%s", values.Encode()), &response); err != nil {
+			return nil, err
+		}
+
+		databases = append(databases, response.Result...)
+
+		if len(response.Result) == 0 || len(response.Result) < pageSize {
+			return databases, nil
+		}
+
+		if response.Count > 0 && len(databases) >= response.Count {
+			return databases, nil
+		}
 	}
-
-	return response.Result, nil
 }
 
 func databaseFromResponse(response databaseResponse) *Database {

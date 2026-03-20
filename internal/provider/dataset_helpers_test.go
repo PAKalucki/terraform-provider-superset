@@ -75,25 +75,33 @@ func TestExpandDatasetUpdateRequestMatchesExistingColumnAndMetricIDs(t *testing.
 	}
 }
 
-func TestFlattenDatasetResourceModelPreservesUnmanagedNestedFields(t *testing.T) {
+func TestFlattenDatasetResourceModelRefreshesManagedFields(t *testing.T) {
 	t.Parallel()
 
 	columns, columnDiags := types.ListValueFrom(context.Background(), datasetColumnObjectType, []datasetColumnModel{
 		{
-			ColumnName:  types.StringValue("id"),
-			VerboseName: types.StringValue("Event ID"),
+			ColumnName: types.StringValue("id"),
 		},
 	})
 	if columnDiags.HasError() {
 		t.Fatalf("expected columns list, got diagnostics: %v", columnDiags)
 	}
 
+	metrics, metricDiags := types.ListValueFrom(context.Background(), datasetMetricObjectType, []datasetMetricModel{
+		{
+			MetricName: types.StringValue("event_count"),
+			Expression: types.StringValue("COUNT(*)"),
+		},
+	})
+	if metricDiags.HasError() {
+		t.Fatalf("expected metrics list, got diagnostics: %v", metricDiags)
+	}
+
 	state, diags := flattenDatasetResourceModel(context.Background(), datasetModel{
-		DatabaseID:          types.Int64Value(12),
-		TableName:           types.StringValue("events"),
-		Description:         types.StringNull(),
-		FilterSelectEnabled: types.BoolNull(),
-		Columns:             columns,
+		DatabaseID: types.Int64Value(12),
+		TableName:  types.StringValue("events"),
+		Columns:    columns,
+		Metrics:    metrics,
 	}, &supersetclient.Dataset{
 		ID:                  42,
 		UUID:                "03b2c25a-86a0-42d8-82fe-8bf726c3bcff",
@@ -108,17 +116,24 @@ func TestFlattenDatasetResourceModelPreservesUnmanagedNestedFields(t *testing.T)
 				Filterable:  boolPtr(true),
 			},
 		},
+		Metrics: []supersetclient.DatasetMetric{
+			{
+				MetricName:  "event_count",
+				Expression:  "COUNT(*)",
+				VerboseName: "Remote Event Count",
+			},
+		},
 	})
 	if diags.HasError() {
 		t.Fatalf("expected flatten to succeed, got diagnostics: %v", diags)
 	}
 
-	if !state.Description.IsNull() {
-		t.Fatalf("expected unmanaged description to remain null, got %q", state.Description.ValueString())
+	if got := state.Description.ValueString(); got != "remote description" {
+		t.Fatalf("expected description to refresh from Superset, got %q", got)
 	}
 
-	if !state.FilterSelectEnabled.IsNull() {
-		t.Fatalf("expected unmanaged filter_select_enabled to remain null, got %t", state.FilterSelectEnabled.ValueBool())
+	if !state.FilterSelectEnabled.ValueBool() {
+		t.Fatal("expected filter_select_enabled to refresh from Superset")
 	}
 
 	var flattenedColumns []datasetColumnModel
@@ -132,11 +147,63 @@ func TestFlattenDatasetResourceModelPreservesUnmanagedNestedFields(t *testing.T)
 	}
 
 	if got := flattenedColumns[0].VerboseName.ValueString(); got != "Remote Event ID" {
-		t.Fatalf("expected managed verbose name to refresh, got %q", got)
+		t.Fatalf("expected column verbose_name to refresh, got %q", got)
 	}
 
-	if !flattenedColumns[0].Filterable.IsNull() {
-		t.Fatalf("expected unmanaged filterable field to remain null, got %t", flattenedColumns[0].Filterable.ValueBool())
+	if !flattenedColumns[0].Filterable.ValueBool() {
+		t.Fatal("expected column filterable to refresh from Superset")
+	}
+
+	var flattenedMetrics []datasetMetricModel
+	metricFlattenDiags := state.Metrics.ElementsAs(context.Background(), &flattenedMetrics, false)
+	if metricFlattenDiags.HasError() {
+		t.Fatalf("expected flattened metrics, got diagnostics: %v", metricFlattenDiags)
+	}
+
+	if len(flattenedMetrics) != 1 {
+		t.Fatalf("expected one flattened metric, got %d", len(flattenedMetrics))
+	}
+
+	if got := flattenedMetrics[0].VerboseName.ValueString(); got != "Remote Event Count" {
+		t.Fatalf("expected metric verbose_name to refresh, got %q", got)
+	}
+}
+
+func TestFlattenDatasetResourceModelPreservesUnmanagedCollections(t *testing.T) {
+	t.Parallel()
+
+	state, diags := flattenDatasetResourceModel(context.Background(), datasetModel{
+		DatabaseID: types.Int64Value(12),
+		TableName:  types.StringValue("events"),
+		Columns:    types.ListNull(datasetColumnObjectType),
+		Metrics:    types.ListNull(datasetMetricObjectType),
+	}, &supersetclient.Dataset{
+		ID:        42,
+		UUID:      "03b2c25a-86a0-42d8-82fe-8bf726c3bcff",
+		TableName: "events",
+		Database:  supersetclient.DatasetDatabase{ID: 12, DatabaseName: "analytics"},
+		Columns: []supersetclient.DatasetColumn{
+			{
+				ColumnName: "id",
+			},
+		},
+		Metrics: []supersetclient.DatasetMetric{
+			{
+				MetricName: "event_count",
+				Expression: "COUNT(*)",
+			},
+		},
+	})
+	if diags.HasError() {
+		t.Fatalf("expected flatten to succeed, got diagnostics: %v", diags)
+	}
+
+	if !state.Columns.IsNull() {
+		t.Fatal("expected unmanaged columns collection to remain null")
+	}
+
+	if !state.Metrics.IsNull() {
+		t.Fatal("expected unmanaged metrics collection to remain null")
 	}
 }
 

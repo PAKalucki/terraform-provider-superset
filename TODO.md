@@ -51,7 +51,7 @@
 - [x] Write acceptance tests for dataset resource against the docker-compose test environment
 - [x] Run dataset resource acceptance tests against the docker-compose test environment
 - [x] Document dataset resource with examples
-- [ ] Commit dataset resource changes with a conventional commit
+- [x] Commit dataset resource changes with a conventional commit
 
 ## Phase 5: Chart Resource
 - [ ] Create `superset_chart` resource schema

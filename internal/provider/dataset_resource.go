@@ -203,6 +203,21 @@ func (r *DatasetResource) Configure(ctx context.Context, req resource.ConfigureR
 
 func (r *DatasetResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data datasetModel
+	var datasetID int64
+	persistedState := false
+
+	defer func() {
+		if datasetID == 0 || persistedState {
+			return
+		}
+
+		if err := r.client.DeleteDataset(ctx, datasetID); err != nil && !isSupersetNotFoundError(err) {
+			resp.Diagnostics.AddWarning(
+				"Unable to Roll Back Superset Dataset After Create Failure",
+				fmt.Sprintf("The provider created Superset dataset %d but could not delete it after the Terraform create operation failed: %v", datasetID, err),
+			)
+		}
+	}()
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
@@ -278,6 +293,11 @@ func (r *DatasetResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	persistedState = true
 }
 
 func (r *DatasetResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
