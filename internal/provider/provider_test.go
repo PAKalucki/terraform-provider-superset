@@ -4,11 +4,23 @@
 package provider
 
 import (
+	"context"
+	"fmt"
+	"os"
 	"testing"
+
+	supersetclient "terraform-provider-superset/internal/client"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/echoprovider"
+)
+
+const (
+	testAccSupersetEndpointEnv    = "SUPERSET_ENDPOINT"
+	testAccSupersetUsernameEnv    = "SUPERSET_USERNAME"
+	testAccSupersetPasswordEnv    = "SUPERSET_PASSWORD"
+	testAccSupersetAccessTokenEnv = "SUPERSET_ACCESS_TOKEN"
 )
 
 // testAccProtoV6ProviderFactories is used to instantiate a provider during acceptance testing.
@@ -28,7 +40,64 @@ var testAccProtoV6ProviderFactoriesWithEcho = map[string]func() (tfprotov6.Provi
 }
 
 func testAccPreCheck(t *testing.T) {
-	// You can add code here to run prior to any test case execution, for example assertions
-	// about the appropriate environment variables being set are common to see in a pre-check
-	// function.
+	t.Helper()
+
+	endpoint := os.Getenv(testAccSupersetEndpointEnv)
+	if endpoint == "" {
+		t.Fatalf("%s must be set for acceptance tests", testAccSupersetEndpointEnv)
+	}
+
+	accessToken := os.Getenv(testAccSupersetAccessTokenEnv)
+	username := os.Getenv(testAccSupersetUsernameEnv)
+	password := os.Getenv(testAccSupersetPasswordEnv)
+
+	if accessToken == "" && (username == "" || password == "") {
+		t.Fatalf(
+			"set %s or both %s and %s for acceptance tests",
+			testAccSupersetAccessTokenEnv,
+			testAccSupersetUsernameEnv,
+			testAccSupersetPasswordEnv,
+		)
+	}
+
+	client, err := supersetclient.New(supersetclient.Config{
+		Endpoint:    endpoint,
+		Username:    username,
+		Password:    password,
+		AccessToken: accessToken,
+	})
+	if err != nil {
+		t.Fatalf("failed to configure Superset test client: %v", err)
+	}
+
+	var availableDatabasesResponse map[string]any
+	if err := client.Get(context.Background(), "/api/v1/database/available/", &availableDatabasesResponse); err != nil {
+		t.Fatalf("failed to reach Superset acceptance environment: %v", err)
+	}
+}
+
+func testAccProviderConfig() string {
+	endpoint := os.Getenv(testAccSupersetEndpointEnv)
+	accessToken := os.Getenv(testAccSupersetAccessTokenEnv)
+
+	if accessToken != "" {
+		return fmt.Sprintf(`
+provider "superset" {
+  endpoint     = %q
+  access_token = %q
+}
+`, endpoint, accessToken)
+	}
+
+	return fmt.Sprintf(`
+provider "superset" {
+  endpoint = %q
+  username = %q
+  password = %q
+}
+`, endpoint, os.Getenv(testAccSupersetUsernameEnv), os.Getenv(testAccSupersetPasswordEnv))
+}
+
+func testAccExpectedDatabaseEngine() string {
+	return "postgresql"
 }

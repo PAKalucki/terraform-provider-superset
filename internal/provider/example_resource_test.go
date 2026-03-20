@@ -78,13 +78,10 @@ func TestAccExampleResource(t *testing.T) {
 
 func testAccExampleResourceConfig(configurableAttribute string) string {
 	return fmt.Sprintf(`
-provider "superset" {
-  endpoint     = "https://superset.example.com"
-  access_token = "token"
-}
+%s
 
 resource "superset_example" "test" {
-  configurable_attribute = %[1]q
+  configurable_attribute = %[2]q
 }
-`, configurableAttribute)
+`, testAccProviderConfig(), configurableAttribute)
 }

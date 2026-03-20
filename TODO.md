@@ -19,17 +19,17 @@
 - [x] Implement API client authentication (login flow, token management)
 - [x] Implement API client base methods (GET, POST, PUT, DELETE with error handling)
 - [x] Add provider configuration validation
-- [ ] Commit provider foundation changes with a conventional commit
+- [x] Commit provider foundation changes with a conventional commit
 
 ## Phase 2: Acceptance Test Environment
-- [ ] Upgrade `docker_compose/` to Apache Superset 6.0.0 for local acceptance testing
-- [ ] Add deterministic bootstrap/setup for admin credentials and API login
-- [ ] Add health checks or readiness waiting for the Superset API
-- [ ] Add scripts or `make` targets to start, stop, and reset the test environment
-- [ ] Document the acceptance test workflow and required environment variables
-- [ ] Write provider acceptance tests that run against the docker-compose test environment
-- [ ] Run provider acceptance tests against the docker-compose test environment
-- [ ] Commit acceptance test environment changes with a conventional commit
+- [x] Upgrade `docker_compose/` to Apache Superset 6.0.0 for local acceptance testing
+- [x] Add deterministic bootstrap/setup for admin credentials and API login
+- [x] Add health checks or readiness waiting for the Superset API
+- [x] Add scripts or `make` targets to start, stop, and reset the test environment
+- [x] Document the acceptance test workflow and required environment variables
+- [x] Write provider acceptance tests that run against the docker-compose test environment
+- [x] Run provider acceptance tests against the docker-compose test environment
+- [x] Commit acceptance test environment changes with a conventional commit
 
 ## Phase 3: Database Connection Resource
 - [ ] Create `superset_database` resource schema

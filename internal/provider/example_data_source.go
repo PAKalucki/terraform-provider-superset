@@ -33,6 +33,14 @@ type ExampleDataSourceModel struct {
 	Id                    types.String `tfsdk:"id"`
 }
 
+type availableDatabasesResponse struct {
+	Databases []availableDatabaseEngine `json:"databases"`
+}
+
+type availableDatabaseEngine struct {
+	Engine string `json:"engine"`
+}
+
 func (d *ExampleDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_example"
 }
@@ -85,22 +93,43 @@ func (d *ExampleDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := d.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read example, got error: %s", err))
-	//     return
-	// }
+	if d.client == nil {
+		resp.Diagnostics.AddError(
+			"Unconfigured Superset Client",
+			"The provider client was not configured for the example data source.",
+		)
 
-	// For the purposes of this example code, hardcoding a response value to
-	// save into the Terraform state.
-	data.Id = types.StringValue("example-id")
+		return
+	}
 
-	// Write logs using the tflog package
-	// Documentation: https://terraform.io/plugin/log
-	tflog.Trace(ctx, "read a data source")
+	var available availableDatabasesResponse
 
-	// Save data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	if err := d.client.Get(ctx, "/api/v1/database/available/", &available); err != nil {
+		resp.Diagnostics.AddError(
+			"Client Error",
+			fmt.Sprintf("Unable to read available Superset databases, got error: %s", err),
+		)
+
+		return
+	}
+
+	for _, database := range available.Databases {
+		if database.Engine == "postgresql" {
+			data.Id = types.StringValue(database.Engine)
+
+			// Write logs using the tflog package
+			// Documentation: https://terraform.io/plugin/log
+			tflog.Trace(ctx, "read a data source")
+
+			// Save data into Terraform state
+			resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+
+			return
+		}
+	}
+
+	resp.Diagnostics.AddError(
+		"Unexpected Superset API Response",
+		"The `/api/v1/database/available/` response did not include the PostgreSQL engine.",
+	)
 }

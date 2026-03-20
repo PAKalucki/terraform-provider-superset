@@ -4,6 +4,7 @@
 package provider
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -19,7 +20,7 @@ func TestAccExampleAction(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccExampleActionConfig,
+				Config: testAccExampleActionConfig(),
 				PostApplyFunc: func() {
 					// Test the results of an action operation.
 					// Actions should not affect existing resources managed
@@ -43,11 +44,9 @@ func TestAccExampleAction(t *testing.T) {
 	})
 }
 
-const testAccExampleActionConfig = `
-provider "superset" {
-  endpoint     = "https://superset.example.com"
-  access_token = "token"
-}
+func testAccExampleActionConfig() string {
+	return fmt.Sprintf(`
+%s
 
 resource "terraform_data" "test" {
 	input = "fake-string"
@@ -64,4 +63,6 @@ action "superset_example" "test" {
 	config {
 		configurable_attribute = "example"
 	}
-}`
+}
+`, testAccProviderConfig())
+}
