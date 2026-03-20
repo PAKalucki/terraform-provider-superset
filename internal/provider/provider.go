@@ -133,6 +133,9 @@ func (p *SupersetProvider) Resources(ctx context.Context) []func() resource.Reso
 		NewRoleResource,
 		NewRolePermissionResource,
 		NewUserResource,
+		NewSavedQueryResource,
+		NewCSSTemplateResource,
+		NewAnnotationLayerResource,
 		NewExampleResource,
 	}
 }
