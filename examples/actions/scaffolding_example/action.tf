@@ -4,12 +4,12 @@ resource "terraform_data" "example" {
   lifecycle {
     action_trigger {
       events  = [before_create]
-      actions = [action.scaffolding_example.example]
+      actions = [action.superset_example.example]
     }
   }
 }
 
-action "scaffolding_example" "example" {
+action "superset_example" "example" {
   config {
     configurable_attribute = "some-value"
   }

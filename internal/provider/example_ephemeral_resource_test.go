@@ -39,12 +39,17 @@ func TestAccExampleEphemeralResource(t *testing.T) {
 
 func testAccExampleEphemeralResourceConfig(configurableAttribute string) string {
 	return fmt.Sprintf(`
-ephemeral "scaffolding_example" "test" {
+provider "superset" {
+  endpoint     = "https://superset.example.com"
+  access_token = "token"
+}
+
+ephemeral "superset_example" "test" {
   configurable_attribute = %[1]q
 }
 
 provider "echo" {
-  data = ephemeral.scaffolding_example.test
+  data = ephemeral.superset_example.test
 }
 
 resource "echo" "test" {}

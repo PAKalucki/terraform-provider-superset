@@ -22,8 +22,13 @@ func TestExampleFunction_Known(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: `
+				provider "superset" {
+					endpoint     = "https://superset.example.com"
+					access_token = "token"
+				}
+
 				output "test" {
-					value = provider::scaffolding::example("testvalue")
+					value = provider::superset::example("testvalue")
 				}
 				`,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -46,8 +51,13 @@ func TestExampleFunction_Null(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: `
+				provider "superset" {
+					endpoint     = "https://superset.example.com"
+					access_token = "token"
+				}
+
 				output "test" {
-					value = provider::scaffolding::example(null)
+					value = provider::superset::example(null)
 				}
 				`,
 				// The parameter does not enable AllowNullValue
@@ -66,12 +76,17 @@ func TestExampleFunction_Unknown(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: `
+				provider "superset" {
+					endpoint     = "https://superset.example.com"
+					access_token = "token"
+				}
+
 				resource "terraform_data" "test" {
 					input = "testvalue"
 				}
 				
 				output "test" {
-					value = provider::scaffolding::example(terraform_data.test.output)
+					value = provider::superset::example(terraform_data.test.output)
 				}
 				`,
 				ConfigStateChecks: []statecheck.StateCheck{
