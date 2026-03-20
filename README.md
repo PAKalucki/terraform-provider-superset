@@ -13,6 +13,7 @@ Currently implemented resources and data sources:
 - `superset_database`
 - `superset_dataset`
 - `superset_chart`
+- `superset_dashboard`
 
 Tutorials for creating Terraform providers can be found on the [HashiCorp Developer](https://developer.hashicorp.com/terraform/tutorials/providers-plugin-framework) platform. _Terraform Plugin Framework specific guides are titled accordingly._
 
@@ -69,6 +70,8 @@ resource "superset_database" "warehouse" {
 ```
 
 Charts can be managed with `superset_chart` once a dataset exists. The chart stores `params` and optional `query_context` as JSON strings; prefer `jsonencode(...)` in Terraform configuration for both.
+
+Dashboards can be managed with `superset_dashboard` using `chart_ids` for simple chart associations, or `position_json` when you need to control the exact Superset layout JSON.
 
 For the local acceptance environment, the sample warehouse Postgres service is available to Superset at `warehouse:5432`.
 
