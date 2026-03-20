@@ -99,14 +99,14 @@
 - [x] Commit user resource changes with a conventional commit
 
 ## Phase 9: Additional Resources
-- [ ] Create `superset_saved_query` resource
-- [ ] Create `superset_css_template` resource
-- [ ] Create `superset_annotation_layer` resource
-- [ ] Write unit tests for additional resources
-- [ ] Write acceptance tests for additional resources against the docker-compose test environment
-- [ ] Run additional resource acceptance tests against the docker-compose test environment
-- [ ] Document additional resources
-- [ ] Commit additional resource changes with a conventional commit
+- [x] Create `superset_saved_query` resource
+- [x] Create `superset_css_template` resource
+- [x] Create `superset_annotation_layer` resource
+- [x] Write unit tests for additional resources
+- [x] Write acceptance tests for additional resources against the docker-compose test environment
+- [x] Run additional resource acceptance tests against the docker-compose test environment
+- [x] Document additional resources
+- [x] Commit additional resource changes with a conventional commit
 
 ## Phase 10: Import Support
 - [ ] Add import functionality to all resources

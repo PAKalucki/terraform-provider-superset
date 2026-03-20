@@ -17,6 +17,9 @@ Currently implemented resources and data sources:
 - `superset_role`
 - `superset_role_permission`
 - `superset_user`
+- `superset_saved_query`
+- `superset_css_template`
+- `superset_annotation_layer`
 - `superset_permission` data source
 
 Tutorials for creating Terraform providers can be found on the [HashiCorp Developer](https://developer.hashicorp.com/terraform/tutorials/providers-plugin-framework) platform. _Terraform Plugin Framework specific guides are titled accordingly._
@@ -80,6 +83,8 @@ Dashboards can be managed with `superset_dashboard` using `chart_ids` for simple
 Roles can be managed with `superset_role`, while `superset_role_permission` manages the full authoritative permission set for one role. The `superset_permission` data source resolves stable permission-view-menu identifiers for those assignments.
 
 Users can be managed with `superset_user` when the Superset auth backend exposes user administration through the REST API, as in the local DB-auth acceptance environment.
+
+Additional supported resources include `superset_saved_query`, `superset_css_template`, and `superset_annotation_layer`.
 
 For the local acceptance environment, the sample warehouse Postgres service is available to Superset at `warehouse:5432`.
 
