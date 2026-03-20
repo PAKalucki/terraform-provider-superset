@@ -116,15 +116,15 @@
 - [x] Commit import support changes with a conventional commit
 
 ## Phase 11: Final Polish
-- [ ] Remove all scaffolding/example code and files
-- [ ] Complete provider documentation (index.md)
-- [ ] Add comprehensive usage examples in examples/ directory
-- [ ] Run full unit and acceptance test suite against the docker-compose test environment and fix issues
-- [ ] Run trivy security scan and fix vulnerabilities
-- [ ] Run golangci-lint and fix linting issues
-- [ ] Update CHANGELOG.md
-- [ ] Commit final polish changes with a conventional commit
-- [ ] Tag initial release version
+- [x] Remove all scaffolding/example code and files
+- [x] Complete provider documentation (index.md)
+- [x] Add comprehensive usage examples in examples/ directory
+- [x] Run full unit and acceptance test suite against the docker-compose test environment and fix issues
+- [x] Run trivy security scan and fix vulnerabilities
+- [x] Run golangci-lint and fix linting issues
+- [x] Update CHANGELOG.md
+- [x] Commit final polish changes with a conventional commit
+- [x] Tag initial release version
 
 ## Phase 12: Github Actions Workflow
 - [ ] Add test github actions workflow to run tests on every PR

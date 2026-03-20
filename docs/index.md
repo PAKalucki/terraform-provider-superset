@@ -7,6 +7,38 @@ description: |-
 
 # superset Provider
 
+Terraform provider for Apache Superset 6.x.
+
+The provider supports authentication with either:
+
+- `username` and `password` for API login
+- `access_token` when you already have a bearer token
+
+Managed resources:
+
+- `superset_database`
+- `superset_dataset`
+- `superset_chart`
+- `superset_dashboard`
+- `superset_role`
+- `superset_role_permission`
+- `superset_user`
+- `superset_saved_query`
+- `superset_css_template`
+- `superset_annotation_layer`
+
+Available data sources:
+
+- `superset_database`
+- `superset_dataset`
+- `superset_chart`
+- `superset_dashboard`
+- `superset_role`
+- `superset_permission`
+
+Import is supported for all managed resources. See the individual resource pages for import commands and any Superset API caveats.
+
+The repository also includes a local Superset 6 docker-compose environment for acceptance testing, with default API credentials `admin` / `admin` at `http://127.0.0.1:8088`.
 
 
 ## Example Usage
