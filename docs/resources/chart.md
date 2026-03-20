@@ -11,6 +11,8 @@ Manages a Superset chart.
 
 Use `jsonencode(...)` for `params` and `query_context` so Terraform and Superset agree on the stored JSON representation. `datasource_type` defaults to `table`.
 
+Very large `query_context` payloads can be rejected by Superset itself or by a reverse proxy in front of it. Keep the JSON compact and prefer provider-managed defaults when Superset can generate the query context for you.
+
 ## Example Usage
 
 ```terraform

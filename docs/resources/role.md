@@ -11,6 +11,8 @@ Manages a Superset role.
 
 Use this resource for the role object itself. Manage the role's permission set separately with `superset_role_permission`.
 
+Deleting a role can affect any users or groups currently assigned to it. The provider emits a warning when it can detect those assignments before delete.
+
 ## Example Usage
 
 ```terraform

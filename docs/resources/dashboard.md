@@ -11,6 +11,8 @@ Manages a Superset dashboard.
 
 Use `chart_ids` for the common case where you want Terraform to associate charts and let the provider generate a simple default layout. Use `position_json` when you need to control the exact dashboard layout. When both are configured, the chart identifiers referenced in `position_json` must match `chart_ids`.
 
+The provider-generated layout is intentionally simple: charts are placed in a single row with fixed Superset dimensions. Switch to `position_json` when you need custom sizing or placement.
+
 ## Example Usage
 
 ```terraform
