@@ -65,16 +65,16 @@
 - [x] Commit chart resource changes with a conventional commit
 
 ## Phase 6: Dashboard Resource
-- [ ] Create `superset_dashboard` resource schema
-- [ ] Implement CRUD operations for dashboards
-- [ ] Add support for dashboard layout and chart positions
-- [ ] Implement dashboard-chart associations
-- [ ] Create `superset_dashboard` data source
-- [ ] Write unit tests for dashboard resource
-- [ ] Write acceptance tests for dashboard resource against the docker-compose test environment
-- [ ] Run dashboard resource acceptance tests against the docker-compose test environment
-- [ ] Document dashboard resource with examples
-- [ ] Commit dashboard resource changes with a conventional commit
+- [x] Create `superset_dashboard` resource schema
+- [x] Implement CRUD operations for dashboards
+- [x] Add support for dashboard layout and chart positions
+- [x] Implement dashboard-chart associations
+- [x] Create `superset_dashboard` data source
+- [x] Write unit tests for dashboard resource
+- [x] Write acceptance tests for dashboard resource against the docker-compose test environment
+- [x] Run dashboard resource acceptance tests against the docker-compose test environment
+- [x] Document dashboard resource with examples
+- [x] Commit dashboard resource changes with a conventional commit
 
 ## Phase 7: Role & Permission Resources
 - [ ] Create `superset_role` resource schema
