@@ -40,17 +40,17 @@
 - [x] Write acceptance tests for database resource against the docker-compose test environment
 - [x] Run database resource acceptance tests against the docker-compose test environment
 - [x] Document database resource with examples
-- [ ] Commit database resource changes with a conventional commit
+- [x] Commit database resource changes with a conventional commit
 
 ## Phase 4: Dataset Resource
-- [ ] Create `superset_dataset` resource schema
-- [ ] Implement CRUD operations for datasets (SQL Lab tables)
-- [ ] Add support for dataset columns and metrics configuration
-- [ ] Create `superset_dataset` data source
-- [ ] Write unit tests for dataset resource
-- [ ] Write acceptance tests for dataset resource against the docker-compose test environment
-- [ ] Run dataset resource acceptance tests against the docker-compose test environment
-- [ ] Document dataset resource with examples
+- [x] Create `superset_dataset` resource schema
+- [x] Implement CRUD operations for datasets (SQL Lab tables)
+- [x] Add support for dataset columns and metrics configuration
+- [x] Create `superset_dataset` data source
+- [x] Write unit tests for dataset resource
+- [x] Write acceptance tests for dataset resource against the docker-compose test environment
+- [x] Run dataset resource acceptance tests against the docker-compose test environment
+- [x] Document dataset resource with examples
 - [ ] Commit dataset resource changes with a conventional commit
 
 ## Phase 5: Chart Resource
