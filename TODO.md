@@ -88,15 +88,15 @@
 - [x] Commit role and permission resource changes with a conventional commit
 
 ## Phase 8: User Resource (Optional - depends on Superset auth backend)
-- [ ] Evaluate user management API availability in Superset 6.0.0
-- [ ] Create `superset_user` resource schema if supported
-- [ ] Implement CRUD operations for users
-- [ ] Add support for user-role assignments
-- [ ] Write unit tests for user resource
-- [ ] Write acceptance tests for user resource against the docker-compose test environment
-- [ ] Run user resource acceptance tests against the docker-compose test environment
-- [ ] Document user resource
-- [ ] Commit user resource changes with a conventional commit
+- [x] Evaluate user management API availability in Superset 6.0.0
+- [x] Create `superset_user` resource schema if supported
+- [x] Implement CRUD operations for users
+- [x] Add support for user-role assignments
+- [x] Write unit tests for user resource
+- [x] Write acceptance tests for user resource against the docker-compose test environment
+- [x] Run user resource acceptance tests against the docker-compose test environment
+- [x] Document user resource
+- [x] Commit user resource changes with a conventional commit
 
 ## Phase 9: Additional Resources
 - [ ] Create `superset_saved_query` resource
