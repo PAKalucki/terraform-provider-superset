@@ -15,6 +15,7 @@ import (
 )
 
 var _ resource.Resource = &RolePermissionResource{}
+var _ resource.ResourceWithImportState = &RolePermissionResource{}
 
 func NewRolePermissionResource() resource.Resource {
 	return &RolePermissionResource{}
@@ -78,6 +79,10 @@ func (r *RolePermissionResource) Configure(ctx context.Context, req resource.Con
 	}
 
 	r.client = client
+}
+
+func (r *RolePermissionResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importInt64Attributes(ctx, req, resp, "id", "role_id")
 }
 
 func (r *RolePermissionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

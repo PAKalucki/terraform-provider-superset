@@ -111,3 +111,18 @@ resource "superset_dashboard" "operations" {
 - `id` (Number) Superset dashboard identifier.
 - `url` (String) Resolved Superset dashboard URL.
 - `uuid` (String) Superset dashboard UUID.
+
+## Import
+
+Import a dashboard by its numeric Superset id.
+
+```terraform
+import {
+  to = superset_dashboard.operations
+  id = "42"
+}
+```
+
+```shell
+terraform import superset_dashboard.operations 42
+```

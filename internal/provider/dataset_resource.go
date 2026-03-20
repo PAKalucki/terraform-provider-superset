@@ -15,6 +15,7 @@ import (
 )
 
 var _ resource.Resource = &DatasetResource{}
+var _ resource.ResourceWithImportState = &DatasetResource{}
 
 func NewDatasetResource() resource.Resource {
 	return &DatasetResource{}
@@ -199,6 +200,10 @@ func (r *DatasetResource) Configure(ctx context.Context, req resource.ConfigureR
 	}
 
 	r.client = client
+}
+
+func (r *DatasetResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importInt64Attributes(ctx, req, resp, "id")
 }
 
 func (r *DatasetResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

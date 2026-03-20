@@ -18,6 +18,7 @@ import (
 )
 
 var _ resource.Resource = &UserResource{}
+var _ resource.ResourceWithImportState = &UserResource{}
 
 func NewUserResource() resource.Resource {
 	return &UserResource{}
@@ -103,6 +104,10 @@ func (r *UserResource) Configure(ctx context.Context, req resource.ConfigureRequ
 	}
 
 	r.client = client
+}
+
+func (r *UserResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importInt64Attributes(ctx, req, resp, "id")
 }
 
 func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

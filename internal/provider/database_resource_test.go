@@ -44,6 +44,7 @@ func TestAccDatabaseResource(t *testing.T) {
 					resource.TestCheckResourceAttr("superset_database.test", "extra", `{"metadata_cache_timeout":{"schema_cache_timeout":1200}}`),
 				),
 			},
+			testAccImportStateStep("superset_database.test", "sqlalchemy_uri"),
 		},
 	})
 }

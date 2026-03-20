@@ -14,6 +14,7 @@ import (
 )
 
 var _ resource.Resource = &SavedQueryResource{}
+var _ resource.ResourceWithImportState = &SavedQueryResource{}
 
 func NewSavedQueryResource() resource.Resource {
 	return &SavedQueryResource{}
@@ -99,6 +100,10 @@ func (r *SavedQueryResource) Configure(ctx context.Context, req resource.Configu
 	}
 
 	r.client = client
+}
+
+func (r *SavedQueryResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importInt64Attributes(ctx, req, resp, "id")
 }
 
 func (r *SavedQueryResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

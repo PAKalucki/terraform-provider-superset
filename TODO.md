@@ -109,11 +109,11 @@
 - [x] Commit additional resource changes with a conventional commit
 
 ## Phase 10: Import Support
-- [ ] Add import functionality to all resources
-- [ ] Document import procedures for each resource
-- [ ] Write import acceptance tests against the docker-compose test environment
-- [ ] Run import acceptance tests against the docker-compose test environment
-- [ ] Commit import support changes with a conventional commit
+- [x] Add import functionality to all resources
+- [x] Document import procedures for each resource
+- [x] Write import acceptance tests against the docker-compose test environment
+- [x] Run import acceptance tests against the docker-compose test environment
+- [x] Commit import support changes with a conventional commit
 
 ## Phase 11: Final Polish
 - [ ] Remove all scaffolding/example code and files

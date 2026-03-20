@@ -48,3 +48,18 @@ resource "superset_role_permission" "analyst" {
 
 - `id` (Number) Terraform resource identifier. This matches `role_id`.
 - `role_name` (String) Resolved Superset role name.
+
+## Import
+
+Import role permissions by the numeric Superset role id.
+
+```terraform
+import {
+  to = superset_role_permission.analyst
+  id = "42"
+}
+```
+
+```shell
+terraform import superset_role_permission.analyst 42
+```

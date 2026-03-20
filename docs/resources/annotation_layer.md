@@ -33,3 +33,18 @@ resource "superset_annotation_layer" "deployments" {
 ### Read-Only
 
 - `id` (Number) Superset annotation layer identifier.
+
+## Import
+
+Import an annotation layer by its numeric Superset id.
+
+```terraform
+import {
+  to = superset_annotation_layer.deployments
+  id = "42"
+}
+```
+
+```shell
+terraform import superset_annotation_layer.deployments 42
+```

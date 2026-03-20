@@ -66,6 +66,7 @@ func TestAccDatasetResource(t *testing.T) {
 					resource.TestCheckNoResourceAttr("superset_dataset.test", "metrics.0.verbose_name"),
 				),
 			},
+			testAccImportStateStep("superset_dataset.test", "columns", "metrics"),
 		},
 	})
 }

@@ -55,3 +55,20 @@ resource "superset_saved_query" "orders" {
 
 - `database_name` (String) Resolved Superset database name.
 - `id` (Number) Superset saved query identifier.
+
+## Import
+
+Import a saved query by its numeric Superset id.
+
+```terraform
+import {
+  to = superset_saved_query.orders
+  id = "42"
+}
+```
+
+```shell
+terraform import superset_saved_query.orders 42
+```
+
+Superset does not always return `extra_json` on read, so configure `extra_json` explicitly after import if you want Terraform to keep managing that field authoritatively.

@@ -54,3 +54,20 @@ resource "superset_database" "warehouse" {
 - `driver` (String) Resolved SQLAlchemy driver.
 - `id` (Number) Superset database identifier.
 - `uuid` (String) Superset database UUID.
+
+## Import
+
+Import a database connection by its numeric Superset id.
+
+```terraform
+import {
+  to = superset_database.warehouse
+  id = "42"
+}
+```
+
+```shell
+terraform import superset_database.warehouse 42
+```
+
+After import, configure the real `sqlalchemy_uri` in Terraform. Superset masks stored credentials when it returns the connection URI from the API.

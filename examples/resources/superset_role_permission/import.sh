@@ -1,0 +1,1 @@
+terraform import superset_role_permission.analyst 42

@@ -44,6 +44,7 @@ func TestAccDashboardResource(t *testing.T) {
 					resource.TestCheckNoResourceAttr("superset_dashboard.test", "position_json"),
 				),
 			},
+			testAccImportStateStep("superset_dashboard.test"),
 		},
 	})
 }

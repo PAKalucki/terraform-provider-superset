@@ -45,6 +45,7 @@ func TestAccSavedQueryResource(t *testing.T) {
 					resource.TestCheckResourceAttr("superset_saved_query.test", "extra_json", "{\"editor_width\":480}"),
 				),
 			},
+			testAccImportStateStep("superset_saved_query.test", "extra_json"),
 		},
 	})
 }
@@ -72,6 +73,7 @@ func TestAccCSSTemplateResource(t *testing.T) {
 					resource.TestCheckResourceAttr("superset_css_template.test", "css", ".dashboard { color: #405060; }"),
 				),
 			},
+			testAccImportStateStep("superset_css_template.test"),
 		},
 	})
 }
@@ -99,6 +101,7 @@ func TestAccAnnotationLayerResource(t *testing.T) {
 					resource.TestCheckNoResourceAttr("superset_annotation_layer.test", "description"),
 				),
 			},
+			testAccImportStateStep("superset_annotation_layer.test"),
 		},
 	})
 }
