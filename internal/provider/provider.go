@@ -132,6 +132,7 @@ func (p *SupersetProvider) Resources(ctx context.Context) []func() resource.Reso
 		NewDashboardResource,
 		NewRoleResource,
 		NewRolePermissionResource,
+		NewUserResource,
 		NewExampleResource,
 	}
 }
@@ -257,4 +258,12 @@ func int64Value(value types.Int64) int64 {
 	}
 
 	return value.ValueInt64()
+}
+
+func boolValue(value types.Bool) bool {
+	if value.IsNull() || value.IsUnknown() {
+		return false
+	}
+
+	return value.ValueBool()
 }
