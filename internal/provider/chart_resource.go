@@ -6,6 +6,8 @@ import (
 
 	supersetclient "terraform-provider-superset/internal/client"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
@@ -157,6 +159,11 @@ func (r *ChartResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
+	resp.Diagnostics.Append(validateChartDatasourceExists(ctx, r.client, createRequest.DatasourceID, createRequest.DatasourceType)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	created, err := r.client.CreateChart(ctx, createRequest)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -273,6 +280,11 @@ func (r *ChartResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
+	resp.Diagnostics.Append(validateChartDatasourceExists(ctx, r.client, updateRequest.DatasourceID, updateRequest.DatasourceType)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	if _, err := r.client.UpdateChart(ctx, current.ID.ValueInt64(), updateRequest); err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Update Superset Chart",
@@ -324,4 +336,34 @@ func (r *ChartResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 			err.Error(),
 		)
 	}
+}
+
+func validateChartDatasourceExists(ctx context.Context, client *supersetclient.Client, datasourceID int64, datasourceType string) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	if datasourceType != "table" {
+		return diags
+	}
+
+	_, err := client.GetDataset(ctx, datasourceID)
+	if err == nil {
+		return diags
+	}
+
+	if isSupersetNotFoundError(err) {
+		diags.AddAttributeError(
+			path.Root("datasource_id"),
+			"Superset Datasource Not Found",
+			fmt.Sprintf("Superset dataset %d was not found for datasource type %q.", datasourceID, datasourceType),
+		)
+
+		return diags
+	}
+
+	diags.AddError(
+		"Unable to Validate Superset Datasource",
+		err.Error(),
+	)
+
+	return diags
 }

@@ -237,6 +237,20 @@ func (r *RoleResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
+	if role, err := loadRoleWithAssignments(ctx, r.client, data.ID.ValueInt64()); err == nil {
+		if len(role.UserIDs) > 0 || len(role.GroupIDs) > 0 {
+			resp.Diagnostics.AddWarning(
+				"Deleting Assigned Superset Role",
+				fmt.Sprintf("Superset role %q is currently assigned to %d users and %d groups. Deleting it may affect existing access controls.", role.Name, len(role.UserIDs), len(role.GroupIDs)),
+			)
+		}
+	} else if !isSupersetNotFoundError(err) {
+		resp.Diagnostics.AddWarning(
+			"Unable to Inspect Superset Role Before Delete",
+			err.Error(),
+		)
+	}
+
 	if err := r.client.DeleteRole(ctx, data.ID.ValueInt64()); err != nil && !isSupersetNotFoundError(err) {
 		resp.Diagnostics.AddError(
 			"Unable to Delete Superset Role",
