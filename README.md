@@ -41,7 +41,28 @@ Then commit the changes to `go.mod` and `go.sum`.
 
 ## Using the provider
 
-Fill this in for each provider
+Example provider configuration:
+
+```terraform
+provider "superset" {
+  endpoint = "http://127.0.0.1:8088"
+  username = "admin"
+  password = "admin"
+}
+
+resource "superset_database" "warehouse" {
+  database_name  = "analytics"
+  sqlalchemy_uri = "postgresql+psycopg2://analytics:analytics@warehouse:5432/analytics"
+
+  extra = jsonencode({
+    metadata_cache_timeout = {
+      schema_cache_timeout = 600
+    }
+  })
+}
+```
+
+For the local acceptance environment, the sample warehouse Postgres service is available to Superset at `warehouse:5432`.
 
 ## Developing the Provider
 

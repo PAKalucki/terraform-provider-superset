@@ -182,6 +182,19 @@ func TestClientPostReturnsAPIError(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/chart/" {
+			if r.URL.Path == "/api/v1/security/csrf_token/" {
+				http.SetCookie(w, &http.Cookie{
+					Name:  "session",
+					Value: "csrf-cookie",
+					Path:  "/",
+				})
+
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"result":"csrf-token"}`))
+
+				return
+			}
+
 			t.Fatalf("unexpected request path %q", r.URL.Path)
 		}
 
@@ -191,6 +204,10 @@ func TestClientPostReturnsAPIError(t *testing.T) {
 
 		if got := r.Header.Get("Authorization"); got != "Bearer static-token" {
 			t.Fatalf("expected bearer token, got %q", got)
+		}
+
+		if got := r.Header.Get("X-CSRFToken"); got != "csrf-token" {
+			t.Fatalf("expected CSRF token, got %q", got)
 		}
 
 		w.WriteHeader(http.StatusBadRequest)
@@ -223,5 +240,102 @@ func TestClientPostReturnsAPIError(t *testing.T) {
 
 	if !strings.Contains(apiErr.Body, "chart payload rejected") {
 		t.Fatalf("expected error body to be preserved, got %q", apiErr.Body)
+	}
+}
+
+func TestClientPostFetchesCSRFTokenAndReusesCookies(t *testing.T) {
+	t.Parallel()
+
+	csrfCalls := 0
+	createCalls := 0
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/security/csrf_token/":
+			csrfCalls++
+
+			if r.Method != http.MethodGet {
+				t.Fatalf("expected GET CSRF request, got %s", r.Method)
+			}
+
+			if got := r.Header.Get("Authorization"); got != "Bearer static-token" {
+				t.Fatalf("expected bearer token on CSRF request, got %q", got)
+			}
+
+			http.SetCookie(w, &http.Cookie{
+				Name:  "session",
+				Value: "csrf-cookie",
+				Path:  "/",
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"result":"csrf-token"}`))
+		case "/api/v1/database/":
+			createCalls++
+
+			if r.Method != http.MethodPost {
+				t.Fatalf("expected POST database request, got %s", r.Method)
+			}
+
+			if got := r.Header.Get("Authorization"); got != "Bearer static-token" {
+				t.Fatalf("expected bearer token on create request, got %q", got)
+			}
+
+			if got := r.Header.Get("X-CSRFToken"); got != "csrf-token" {
+				t.Fatalf("expected CSRF token header, got %q", got)
+			}
+
+			if got := r.Header.Get("Cookie"); !strings.Contains(got, "session=csrf-cookie") {
+				t.Fatalf("expected session cookie on create request, got %q", got)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":12,"result":{"database_name":"analytics"}}`))
+		default:
+			t.Fatalf("unexpected request path %q", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	c, err := New(Config{
+		Endpoint:    server.URL,
+		AccessToken: "static-token",
+		HTTPClient:  server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("expected client, got error: %v", err)
+	}
+
+	for range 2 {
+		if err := c.Post(context.Background(), "/api/v1/database/", map[string]string{"database_name": "analytics"}, nil); err != nil {
+			t.Fatalf("expected successful POST request, got error: %v", err)
+		}
+	}
+
+	if csrfCalls != 1 {
+		t.Fatalf("expected one CSRF request, got %d", csrfCalls)
+	}
+
+	if createCalls != 2 {
+		t.Fatalf("expected two create requests, got %d", createCalls)
+	}
+}
+
+func TestResolveURLKeepsQueryString(t *testing.T) {
+	t.Parallel()
+
+	c, err := New(Config{
+		Endpoint:    "https://superset.example.com/base",
+		AccessToken: "static-token",
+	})
+	if err != nil {
+		t.Fatalf("expected client, got error: %v", err)
+	}
+
+	got := c.resolveURL("/api/v1/database/?page_size=1000")
+	want := "https://superset.example.com/base/api/v1/database/?page_size=1000"
+
+	if got != want {
+		t.Fatalf("expected resolved URL %q, got %q", want, got)
 	}
 }

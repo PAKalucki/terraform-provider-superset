@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 const (
 	defaultLoginProvider = "db"
 	loginPath            = "/api/v1/security/login"
+	csrfTokenPath        = "/api/v1/security/csrf_token/"
 )
 
 type Config struct {
@@ -35,6 +37,7 @@ type Client struct {
 
 	mu          sync.Mutex
 	accessToken string
+	csrfToken   string
 }
 
 type APIError struct {
@@ -75,6 +78,8 @@ func New(config Config) (*Client, error) {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 30 * time.Second}
 	}
+
+	httpClient = cloneHTTPClient(httpClient)
 
 	return &Client{
 		baseURL:     endpoint,
@@ -118,7 +123,7 @@ func (c *Client) Authenticate(ctx context.Context) error {
 		Provider: defaultLoginProvider,
 	}
 
-	if err := c.execute(ctx, http.MethodPost, loginPath, loginReq, &loginResp, "", false); err != nil {
+	if err := c.execute(ctx, http.MethodPost, loginPath, loginReq, &loginResp, "", false, ""); err != nil {
 		return fmt.Errorf("authenticate with Superset API: %w", err)
 	}
 
@@ -127,6 +132,31 @@ func (c *Client) Authenticate(ctx context.Context) error {
 	}
 
 	c.accessToken = loginResp.AccessToken
+
+	return nil
+}
+
+func (c *Client) ensureCSRFToken(ctx context.Context) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.csrfToken != "" {
+		return nil
+	}
+
+	var csrfResp struct {
+		Result string `json:"result"`
+	}
+
+	if err := c.execute(ctx, http.MethodGet, csrfTokenPath, nil, &csrfResp, c.accessToken, true, ""); err != nil {
+		return fmt.Errorf("retrieve Superset CSRF token: %w", err)
+	}
+
+	if strings.TrimSpace(csrfResp.Result) == "" {
+		return errors.New("retrieve Superset CSRF token: empty token in response")
+	}
+
+	c.csrfToken = csrfResp.Result
 
 	return nil
 }
@@ -152,11 +182,21 @@ func (c *Client) do(ctx context.Context, method string, requestPath string, requ
 		return err
 	}
 
-	return c.execute(ctx, method, requestPath, requestBody, responseBody, c.AccessToken(), true)
+	csrfToken := ""
+
+	if requiresCSRF(method) {
+		if err := c.ensureCSRFToken(ctx); err != nil {
+			return err
+		}
+
+		csrfToken = c.csrfToken
+	}
+
+	return c.execute(ctx, method, requestPath, requestBody, responseBody, c.AccessToken(), true, csrfToken)
 }
 
-func (c *Client) execute(ctx context.Context, method string, requestPath string, requestBody any, responseBody any, token string, includeAuth bool) error {
-	req, err := c.newRequest(ctx, method, requestPath, requestBody, token, includeAuth)
+func (c *Client) execute(ctx context.Context, method string, requestPath string, requestBody any, responseBody any, token string, includeAuth bool, csrfToken string) error {
+	req, err := c.newRequest(ctx, method, requestPath, requestBody, token, includeAuth, csrfToken)
 	if err != nil {
 		return err
 	}
@@ -192,7 +232,7 @@ func (c *Client) execute(ctx context.Context, method string, requestPath string,
 	return nil
 }
 
-func (c *Client) newRequest(ctx context.Context, method string, requestPath string, requestBody any, token string, includeAuth bool) (*http.Request, error) {
+func (c *Client) newRequest(ctx context.Context, method string, requestPath string, requestBody any, token string, includeAuth bool, csrfToken string) (*http.Request, error) {
 	var body io.Reader
 
 	if requestBody != nil {
@@ -219,11 +259,20 @@ func (c *Client) newRequest(ctx context.Context, method string, requestPath stri
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
+	if csrfToken != "" {
+		req.Header.Set("X-CSRFToken", csrfToken)
+	}
+
 	return req, nil
 }
 
 func (c *Client) resolveURL(requestPath string) string {
-	relative := &url.URL{Path: strings.TrimLeft(requestPath, "/")}
+	relative, err := url.Parse(strings.TrimSpace(requestPath))
+	if err != nil {
+		relative = &url.URL{Path: requestPath}
+	}
+
+	relative.Path = strings.TrimLeft(relative.Path, "/")
 	base := *c.baseURL
 
 	if !strings.HasSuffix(base.Path, "/") {
@@ -253,4 +302,30 @@ func normalizeEndpoint(raw string) (*url.URL, error) {
 	}
 
 	return parsed, nil
+}
+
+func cloneHTTPClient(httpClient *http.Client) *http.Client {
+	cloned := *httpClient
+
+	if cloned.Timeout == 0 {
+		cloned.Timeout = 30 * time.Second
+	}
+
+	if cloned.Jar == nil {
+		jar, err := cookiejar.New(nil)
+		if err == nil {
+			cloned.Jar = jar
+		}
+	}
+
+	return &cloned
+}
+
+func requiresCSRF(method string) bool {
+	switch method {
+	case http.MethodDelete, http.MethodPatch, http.MethodPost, http.MethodPut:
+		return true
+	default:
+		return false
+	}
 }
