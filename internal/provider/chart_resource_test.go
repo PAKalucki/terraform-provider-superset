@@ -46,6 +46,7 @@ func TestAccChartResource(t *testing.T) {
 					resource.TestCheckResourceAttr("superset_chart.test", "viz_type", "table"),
 				),
 			},
+			testAccImportStateStep("superset_chart.test"),
 		},
 	})
 }

@@ -16,6 +16,7 @@ import (
 )
 
 var _ resource.Resource = &DashboardResource{}
+var _ resource.ResourceWithImportState = &DashboardResource{}
 
 func NewDashboardResource() resource.Resource {
 	return &DashboardResource{}
@@ -96,6 +97,10 @@ func (r *DashboardResource) Configure(ctx context.Context, req resource.Configur
 	}
 
 	r.client = client
+}
+
+func (r *DashboardResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importInt64Attributes(ctx, req, resp, "id")
 }
 
 func (r *DashboardResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

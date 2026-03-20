@@ -46,3 +46,20 @@ resource "superset_user" "analyst" {
 ### Read-Only
 
 - `id` (Number) Superset user identifier.
+
+## Import
+
+Import a user by its numeric Superset id.
+
+```terraform
+import {
+  to = superset_user.analyst
+  id = "42"
+}
+```
+
+```shell
+terraform import superset_user.analyst 42
+```
+
+Superset does not return user passwords through the API, so `password` is not restored by import. Omit `password` after import to leave it unchanged, or set a new value if you want Terraform to rotate it on the next apply.

@@ -17,6 +17,7 @@ import (
 )
 
 var _ resource.Resource = &ChartResource{}
+var _ resource.ResourceWithImportState = &ChartResource{}
 
 func NewChartResource() resource.Resource {
 	return &ChartResource{}
@@ -119,6 +120,10 @@ func (r *ChartResource) Configure(ctx context.Context, req resource.ConfigureReq
 	}
 
 	r.client = client
+}
+
+func (r *ChartResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importInt64Attributes(ctx, req, resp, "id")
 }
 
 func (r *ChartResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

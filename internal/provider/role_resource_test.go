@@ -33,6 +33,7 @@ func TestAccRoleResource(t *testing.T) {
 					resource.TestCheckResourceAttr("superset_role.test", "name", roleNameTwo),
 				),
 			},
+			testAccImportStateStep("superset_role.test"),
 		},
 	})
 }
@@ -117,6 +118,7 @@ func TestAccRolePermissionResource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.superset_role.lookup", "permission_ids.#", "0"),
 				),
 			},
+			testAccImportStateStep("superset_role_permission.test"),
 		},
 	})
 }

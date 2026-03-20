@@ -13,6 +13,7 @@ import (
 )
 
 var _ resource.Resource = &RoleResource{}
+var _ resource.ResourceWithImportState = &RoleResource{}
 
 func NewRoleResource() resource.Resource {
 	return &RoleResource{}
@@ -61,6 +62,10 @@ func (r *RoleResource) Configure(ctx context.Context, req resource.ConfigureRequ
 	}
 
 	r.client = client
+}
+
+func (r *RoleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importInt64Attributes(ctx, req, resp, "id")
 }
 
 func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

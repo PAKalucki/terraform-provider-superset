@@ -30,3 +30,18 @@ resource "superset_role" "analyst" {
 ### Read-Only
 
 - `id` (Number) Superset role identifier.
+
+## Import
+
+Import a role by its numeric Superset id.
+
+```terraform
+import {
+  to = superset_role.analyst
+  id = "42"
+}
+```
+
+```shell
+terraform import superset_role.analyst 42
+```

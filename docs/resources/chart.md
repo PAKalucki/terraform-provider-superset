@@ -97,3 +97,18 @@ resource "superset_chart" "events_table" {
 - `id` (Number) Superset chart identifier.
 - `url` (String) Resolved Superset chart URL.
 - `uuid` (String) Superset chart UUID.
+
+## Import
+
+Import a chart by its numeric Superset id.
+
+```terraform
+import {
+  to = superset_chart.events_table
+  id = "42"
+}
+```
+
+```shell
+terraform import superset_chart.events_table 42
+```

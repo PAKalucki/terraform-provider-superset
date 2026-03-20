@@ -83,3 +83,20 @@ resource "superset_dataset" "events" {
 - `database_name` (String) Resolved Superset database name.
 - `id` (Number) Superset dataset identifier.
 - `uuid` (String) Superset dataset UUID.
+
+## Import
+
+Import a dataset by its numeric Superset id.
+
+```terraform
+import {
+  to = superset_dataset.events
+  id = "42"
+}
+```
+
+```shell
+terraform import superset_dataset.events 42
+```
+
+If you want Terraform to manage `columns` or `metrics`, add those collections to configuration after import and run `terraform apply`. The import operation cannot infer whether those nested collections should stay unmanaged or become authoritative.

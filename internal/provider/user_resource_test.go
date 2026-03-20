@@ -46,6 +46,7 @@ func TestAccUserResource(t *testing.T) {
 					resource.TestCheckTypeSetElemAttrPair("superset_user.test", "role_ids.*", "data.superset_role.gamma", "id"),
 				),
 			},
+			testAccImportStateStep("superset_user.test", "password"),
 		},
 	})
 }

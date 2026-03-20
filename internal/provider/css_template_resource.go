@@ -17,6 +17,7 @@ import (
 )
 
 var _ resource.Resource = &CSSTemplateResource{}
+var _ resource.ResourceWithImportState = &CSSTemplateResource{}
 
 func NewCSSTemplateResource() resource.Resource {
 	return &CSSTemplateResource{}
@@ -75,6 +76,10 @@ func (r *CSSTemplateResource) Configure(ctx context.Context, req resource.Config
 	}
 
 	r.client = client
+}
+
+func (r *CSSTemplateResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importInt64Attributes(ctx, req, resp, "id")
 }
 
 func (r *CSSTemplateResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

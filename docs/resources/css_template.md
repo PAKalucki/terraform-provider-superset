@@ -33,3 +33,18 @@ resource "superset_css_template" "branding" {
 ### Read-Only
 
 - `id` (Number) Superset CSS template identifier.
+
+## Import
+
+Import a CSS template by its numeric Superset id.
+
+```terraform
+import {
+  to = superset_css_template.branding
+  id = "42"
+}
+```
+
+```shell
+terraform import superset_css_template.branding 42
+```

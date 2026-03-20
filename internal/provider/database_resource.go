@@ -15,6 +15,7 @@ import (
 )
 
 var _ resource.Resource = &DatabaseResource{}
+var _ resource.ResourceWithImportState = &DatabaseResource{}
 
 func NewDatabaseResource() resource.Resource {
 	return &DatabaseResource{}
@@ -170,6 +171,10 @@ func (r *DatabaseResource) Configure(ctx context.Context, req resource.Configure
 	}
 
 	r.client = client
+}
+
+func (r *DatabaseResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importInt64Attributes(ctx, req, resp, "id")
 }
 
 func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

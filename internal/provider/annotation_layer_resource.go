@@ -17,6 +17,7 @@ import (
 )
 
 var _ resource.Resource = &AnnotationLayerResource{}
+var _ resource.ResourceWithImportState = &AnnotationLayerResource{}
 
 func NewAnnotationLayerResource() resource.Resource {
 	return &AnnotationLayerResource{}
@@ -75,6 +76,10 @@ func (r *AnnotationLayerResource) Configure(ctx context.Context, req resource.Co
 	}
 
 	r.client = client
+}
+
+func (r *AnnotationLayerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importInt64Attributes(ctx, req, resp, "id")
 }
 
 func (r *AnnotationLayerResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
