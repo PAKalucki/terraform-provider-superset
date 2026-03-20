@@ -4,15 +4,14 @@
 package main
 
 import (
-    "context"
-    "flag"
-    "log"
-	
-    "github.com/hashicorp/terraform-plugin-framework/providerserver"
+	"context"
+	"flag"
+	"log"
 
-    "terraform-provider-hashicups/internal/provider"
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+
+	"terraform-provider-superset/internal/provider"
 )
-
 
 var (
 	// these will be set by the goreleaser configuration
@@ -30,10 +29,7 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		// TODO: Update this string with the published name of your provider.
-		// Also update the tfplugindocs generate command to either remove the
-		// -provider-name flag or set its value to the updated provider name.
-		Address: "registry.terraform.io/hashicorp/scaffolding",
+		Address: "registry.terraform.io/prka/superset",
 		Debug:   debug,
 	}
 

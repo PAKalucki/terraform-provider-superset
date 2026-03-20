@@ -44,18 +44,23 @@ func TestAccExampleAction(t *testing.T) {
 }
 
 const testAccExampleActionConfig = `
+provider "superset" {
+  endpoint     = "https://superset.example.com"
+  access_token = "token"
+}
+
 resource "terraform_data" "test" {
 	input = "fake-string"
 
 	lifecycle {
 		action_trigger {
 		  events  = [before_create] # action triggers before resource creation
-		  actions = [action.scaffolding_example.test]
+		  actions = [action.superset_example.test]
 		}
 	}
 }
 
-action "scaffolding_example" "test" {
+action "superset_example" "test" {
 	config {
 		configurable_attribute = "example"
 	}

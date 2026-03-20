@@ -5,55 +5,79 @@ package provider
 
 import (
 	"context"
-	"net/http"
+	"net/url"
+	"strings"
+
+	supersetclient "terraform-provider-superset/internal/client"
 
 	"github.com/hashicorp/terraform-plugin-framework/action"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
 	"github.com/hashicorp/terraform-plugin-framework/function"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Ensure ScaffoldingProvider satisfies various provider interfaces.
-var _ provider.Provider = &ScaffoldingProvider{}
-var _ provider.ProviderWithFunctions = &ScaffoldingProvider{}
-var _ provider.ProviderWithEphemeralResources = &ScaffoldingProvider{}
-var _ provider.ProviderWithActions = &ScaffoldingProvider{}
+// Ensure SupersetProvider satisfies various provider interfaces.
+var _ provider.Provider = &SupersetProvider{}
+var _ provider.ProviderWithValidateConfig = &SupersetProvider{}
+var _ provider.ProviderWithFunctions = &SupersetProvider{}
+var _ provider.ProviderWithEphemeralResources = &SupersetProvider{}
+var _ provider.ProviderWithActions = &SupersetProvider{}
 
-// ScaffoldingProvider defines the provider implementation.
-type ScaffoldingProvider struct {
+// SupersetProvider defines the provider implementation.
+type SupersetProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
 	version string
 }
 
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+// SupersetProviderModel describes the provider data model.
+type SupersetProviderModel struct {
+	Endpoint    types.String `tfsdk:"endpoint"`
+	Username    types.String `tfsdk:"username"`
+	Password    types.String `tfsdk:"password"`
+	AccessToken types.String `tfsdk:"access_token"`
 }
 
-func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "scaffolding"
+func (p *SupersetProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "superset"
 	resp.Version = p.version
 }
 
-func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *SupersetProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: "Terraform provider for Apache Superset.",
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
+				MarkdownDescription: "Superset base URL, for example `https://superset.example.com`.",
+				Required:            true,
+			},
+			"username": schema.StringAttribute{
+				MarkdownDescription: "Superset username used for API login. Configure with `password` when `access_token` is not provided.",
 				Optional:            true,
+			},
+			"password": schema.StringAttribute{
+				MarkdownDescription: "Superset password used for API login. Configure with `username` when `access_token` is not provided.",
+				Optional:            true,
+				Sensitive:           true,
+			},
+			"access_token": schema.StringAttribute{
+				MarkdownDescription: "Superset API bearer token. Configure this instead of `username` and `password` when a token is already available.",
+				Optional:            true,
+				Sensitive:           true,
 			},
 		},
 	}
 }
 
-func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
+func (p *SupersetProvider) ValidateConfig(ctx context.Context, req provider.ValidateConfigRequest, resp *provider.ValidateConfigResponse) {
+	var data SupersetProviderModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
@@ -61,40 +85,70 @@ func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.Config
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
-
-	// Example client configuration for data sources and resources
-	client := http.DefaultClient
-	resp.DataSourceData = client
-	resp.ResourceData = client
+	resp.Diagnostics.Append(validateProviderModel(data)...)
 }
 
-func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
+func (p *SupersetProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	var data SupersetProviderModel
+
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(validateProviderModel(data)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	client, err := supersetclient.New(supersetclient.Config{
+		Endpoint:    stringValue(data.Endpoint),
+		Username:    stringValue(data.Username),
+		Password:    stringValue(data.Password),
+		AccessToken: stringValue(data.AccessToken),
+	})
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to Configure Superset Client",
+			err.Error(),
+		)
+
+		return
+	}
+
+	resp.DataSourceData = client
+	resp.ResourceData = client
+	resp.EphemeralResourceData = client
+	resp.ActionData = client
+}
+
+func (p *SupersetProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewExampleResource,
 	}
 }
 
-func (p *ScaffoldingProvider) EphemeralResources(ctx context.Context) []func() ephemeral.EphemeralResource {
+func (p *SupersetProvider) EphemeralResources(ctx context.Context) []func() ephemeral.EphemeralResource {
 	return []func() ephemeral.EphemeralResource{
 		NewExampleEphemeralResource,
 	}
 }
 
-func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+func (p *SupersetProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewExampleDataSource,
 	}
 }
 
-func (p *ScaffoldingProvider) Functions(ctx context.Context) []func() function.Function {
+func (p *SupersetProvider) Functions(ctx context.Context) []func() function.Function {
 	return []func() function.Function{
 		NewExampleFunction,
 	}
 }
 
-func (p *ScaffoldingProvider) Actions(ctx context.Context) []func() action.Action {
+func (p *SupersetProvider) Actions(ctx context.Context) []func() action.Action {
 	return []func() action.Action{
 		NewExampleAction,
 	}
@@ -102,8 +156,85 @@ func (p *ScaffoldingProvider) Actions(ctx context.Context) []func() action.Actio
 
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
-		return &ScaffoldingProvider{
+		return &SupersetProvider{
 			version: version,
 		}
 	}
+}
+
+func validateProviderModel(data SupersetProviderModel) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	if data.Endpoint.IsNull() || isBlankString(data.Endpoint) {
+		diags.AddAttributeError(
+			path.Root("endpoint"),
+			"Missing Superset Endpoint",
+			"The provider endpoint must be configured.",
+		)
+	} else if !data.Endpoint.IsUnknown() {
+		parsed, err := url.Parse(strings.TrimSpace(data.Endpoint.ValueString()))
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+			diags.AddAttributeError(
+				path.Root("endpoint"),
+				"Invalid Superset Endpoint",
+				"The provider endpoint must be a valid URL, for example https://superset.example.com.",
+			)
+		}
+	}
+
+	if data.AccessToken.IsUnknown() || data.Username.IsUnknown() || data.Password.IsUnknown() {
+		return diags
+	}
+
+	accessTokenSet := hasStringValue(data.AccessToken)
+	usernameSet := hasStringValue(data.Username)
+	passwordSet := hasStringValue(data.Password)
+
+	if accessTokenSet && (usernameSet || passwordSet) {
+		diags.AddAttributeError(
+			path.Root("access_token"),
+			"Conflicting Superset Authentication Settings",
+			"`access_token` cannot be combined with `username` or `password`.",
+		)
+	}
+
+	if accessTokenSet {
+		return diags
+	}
+
+	if usernameSet != passwordSet {
+		diags.AddAttributeError(
+			path.Root("password"),
+			"Incomplete Superset Authentication Settings",
+			"`username` and `password` must both be configured.",
+		)
+
+		return diags
+	}
+
+	if !usernameSet && !passwordSet {
+		diags.AddAttributeError(
+			path.Root("access_token"),
+			"Missing Superset Authentication Settings",
+			"Configure either `access_token` or `username` and `password`.",
+		)
+	}
+
+	return diags
+}
+
+func hasStringValue(value types.String) bool {
+	return !value.IsNull() && !value.IsUnknown() && strings.TrimSpace(value.ValueString()) != ""
+}
+
+func isBlankString(value types.String) bool {
+	return !value.IsNull() && !value.IsUnknown() && strings.TrimSpace(value.ValueString()) == ""
+}
+
+func stringValue(value types.String) string {
+	if value.IsNull() || value.IsUnknown() {
+		return ""
+	}
+
+	return value.ValueString()
 }

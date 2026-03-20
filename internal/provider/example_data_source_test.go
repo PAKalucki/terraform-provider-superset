@@ -22,7 +22,7 @@ func TestAccExampleDataSource(t *testing.T) {
 				Config: testAccExampleDataSourceConfig,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue(
-						"data.scaffolding_example.test",
+						"data.superset_example.test",
 						tfjsonpath.New("id"),
 						knownvalue.StringExact("example-id"),
 					),
@@ -33,7 +33,12 @@ func TestAccExampleDataSource(t *testing.T) {
 }
 
 const testAccExampleDataSourceConfig = `
-data "scaffolding_example" "test" {
+provider "superset" {
+  endpoint     = "https://superset.example.com"
+  access_token = "token"
+}
+
+data "superset_example" "test" {
   configurable_attribute = "example"
 }
 `
