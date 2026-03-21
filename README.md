@@ -1,7 +1,5 @@
 # Terraform Provider Superset
 
-_This provider is built on the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework). See [Which SDK Should I Use?](https://developer.hashicorp.com/terraform/plugin/framework-benefits) in the Terraform documentation for additional information._
-
 This repository contains a [Terraform](https://www.terraform.io) provider for Apache Superset, including:
 
 - Provider implementation under `internal/provider/`
