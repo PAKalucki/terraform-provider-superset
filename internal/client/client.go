@@ -264,9 +264,14 @@ func (c *Client) newRequest(ctx context.Context, method string, requestPath stri
 
 	if csrfToken != "" {
 		req.Header.Set("X-CSRFToken", csrfToken)
+		req.Header.Set("Referer", c.csrfReferer())
 	}
 
 	return req, nil
+}
+
+func (c *Client) csrfReferer() string {
+	return c.resolveURL("/")
 }
 
 func (c *Client) resolveURL(requestPath string) string {
