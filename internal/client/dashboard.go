@@ -74,7 +74,12 @@ func (c *Client) CreateDashboard(ctx context.Context, request DashboardCreateReq
 func (c *Client) GetDashboard(ctx context.Context, idOrSlug string) (*Dashboard, error) {
 	var response dashboardResponse
 
-	if err := c.Get(ctx, dashboardPath(idOrSlug), &response); err != nil {
+	requestPath, err := dashboardPath(idOrSlug)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.Get(ctx, requestPath, &response); err != nil {
 		return nil, err
 	}
 
@@ -84,13 +89,23 @@ func (c *Client) GetDashboard(ctx context.Context, idOrSlug string) (*Dashboard,
 func (c *Client) UpdateDashboard(ctx context.Context, id int64, request DashboardUpdateRequest) error {
 	var response dashboardResponse
 
-	return c.Put(ctx, dashboardPath(strconv.FormatInt(id, 10)), request, &response)
+	requestPath, err := dashboardPath(strconv.FormatInt(id, 10))
+	if err != nil {
+		return err
+	}
+
+	return c.Put(ctx, requestPath, request, &response)
 }
 
 func (c *Client) DeleteDashboard(ctx context.Context, id int64) error {
 	var response map[string]any
 
-	return c.Delete(ctx, dashboardPath(strconv.FormatInt(id, 10)), &response)
+	requestPath, err := dashboardPath(strconv.FormatInt(id, 10))
+	if err != nil {
+		return err
+	}
+
+	return c.Delete(ctx, requestPath, &response)
 }
 
 func (c *Client) ListDashboards(ctx context.Context, pageSize int) ([]Dashboard, error) {
@@ -101,6 +116,10 @@ func (c *Client) ListDashboards(ctx context.Context, pageSize int) ([]Dashboard,
 	dashboards := make([]Dashboard, 0, pageSize)
 
 	for page := 0; ; page++ {
+		if err := validatePagination(ctx, page, c.paginationLimit()); err != nil {
+			return nil, err
+		}
+
 		values := url.Values{}
 		values.Set("page", strconv.Itoa(page))
 		values.Set("page_size", strconv.Itoa(pageSize))
@@ -126,7 +145,12 @@ func (c *Client) ListDashboards(ctx context.Context, pageSize int) ([]Dashboard,
 func (c *Client) GetDashboardCharts(ctx context.Context, idOrSlug string) ([]DashboardChart, error) {
 	var response dashboardChartsResponse
 
-	if err := c.Get(ctx, fmt.Sprintf("%s/charts", dashboardPath(idOrSlug)), &response); err != nil {
+	requestPath, err := dashboardPath(idOrSlug)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.Get(ctx, fmt.Sprintf("%s/charts", requestPath), &response); err != nil {
 		return nil, err
 	}
 
@@ -171,6 +195,11 @@ func dashboardFromResponse(response dashboardResponse) *Dashboard {
 	return &dashboard
 }
 
-func dashboardPath(idOrSlug string) string {
-	return fmt.Sprintf("/api/v1/dashboard/%s", url.PathEscape(strings.TrimSpace(idOrSlug)))
+func dashboardPath(idOrSlug string) (string, error) {
+	normalized := strings.TrimSpace(idOrSlug)
+	if normalized == "" {
+		return "", fmt.Errorf("dashboard identifier must not be empty")
+	}
+
+	return fmt.Sprintf("/api/v1/dashboard/%s", url.PathEscape(normalized)), nil
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 )
 
 var _ resource.Resource = &ChartResource{}
@@ -52,6 +53,9 @@ func (r *ChartResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"slice_name": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "Human-readable chart name in Superset.",
+				Validators: []validator.String{
+					nonEmptyTrimmedStringValidator(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:            true,
@@ -60,6 +64,9 @@ func (r *ChartResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"datasource_id": schema.Int64Attribute{
 				Required:            true,
 				MarkdownDescription: "Superset datasource identifier for the chart.",
+				Validators: []validator.Int64{
+					positiveInt64Validator(),
+				},
 			},
 			"datasource_type": schema.StringAttribute{
 				Optional:            true,
@@ -68,6 +75,9 @@ func (r *ChartResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				MarkdownDescription: "Superset datasource type, for example `table`.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
+				},
+				Validators: []validator.String{
+					nonEmptyTrimmedStringValidator(),
 				},
 			},
 			"datasource_name": schema.StringAttribute{
@@ -80,6 +90,9 @@ func (r *ChartResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"viz_type": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "Superset visualization type, for example `table` or `bar`.",
+				Validators: []validator.String{
+					nonEmptyTrimmedStringValidator(),
+				},
 			},
 			"params": schema.StringAttribute{
 				Required:            true,

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -84,5 +85,32 @@ func TestListDashboardsPaginates(t *testing.T) {
 
 	if len(requestedPages) != 2 || requestedPages[0] != "0" || requestedPages[1] != "1" {
 		t.Fatalf("expected pagination to request pages 0 and 1, got %#v", requestedPages)
+	}
+}
+
+func TestGetDashboardRejectsEmptyIdentifier(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("did not expect request for empty dashboard identifier")
+	}))
+	defer server.Close()
+
+	c, err := New(Config{
+		Endpoint:    server.URL,
+		AccessToken: "static-token",
+		HTTPClient:  server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("expected client, got error: %v", err)
+	}
+
+	_, err = c.GetDashboard(context.Background(), "   ")
+	if err == nil {
+		t.Fatal("expected empty dashboard identifier to fail")
+	}
+
+	if !strings.Contains(err.Error(), "must not be empty") {
+		t.Fatalf("expected empty identifier error, got %v", err)
 	}
 }

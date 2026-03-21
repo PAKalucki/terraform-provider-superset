@@ -106,6 +106,10 @@ func (c *Client) ListRoles(ctx context.Context, pageSize int) ([]Role, error) {
 	roles := make([]Role, 0, pageSize)
 
 	for page := 0; ; page++ {
+		if err := validatePagination(ctx, page, c.paginationLimit()); err != nil {
+			return nil, err
+		}
+
 		var response roleListResponse
 
 		requestPath := fmt.Sprintf("/api/v1/security/roles/search/?q=%s", securityListQuery(page, pageSize))
@@ -181,6 +185,10 @@ func (c *Client) ListPermissions(ctx context.Context, pageSize int) ([]Permissio
 	permissions := make([]Permission, 0, pageSize)
 
 	for page := 0; ; page++ {
+		if err := validatePagination(ctx, page, c.paginationLimit()); err != nil {
+			return nil, err
+		}
+
 		var response permissionListResponse
 
 		requestPath := fmt.Sprintf("/api/v1/security/permissions-resources/?q=%s", securityListQuery(page, pageSize))

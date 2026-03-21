@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 )
 
 var _ resource.Resource = &DatasetResource{}
@@ -50,6 +51,12 @@ func (r *DatasetResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"database_id": schema.Int64Attribute{
 				Required:            true,
 				MarkdownDescription: "Superset database identifier that owns the dataset.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
+				Validators: []validator.Int64{
+					positiveInt64Validator(),
+				},
 			},
 			"database_name": schema.StringAttribute{
 				Computed:            true,
@@ -61,6 +68,12 @@ func (r *DatasetResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"table_name": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "Dataset table name.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					nonEmptyTrimmedStringValidator(),
+				},
 			},
 			"schema": schema.StringAttribute{
 				Optional:            true,

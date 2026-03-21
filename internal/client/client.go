@@ -38,6 +38,8 @@ type Client struct {
 	mu          sync.Mutex
 	accessToken string
 	csrfToken   string
+
+	maxPaginationPages int
 }
 
 type APIError struct {
@@ -136,12 +138,12 @@ func (c *Client) Authenticate(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) ensureCSRFToken(ctx context.Context) error {
+func (c *Client) ensureCSRFToken(ctx context.Context) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.csrfToken != "" {
-		return nil
+		return c.csrfToken, nil
 	}
 
 	var csrfResp struct {
@@ -149,16 +151,16 @@ func (c *Client) ensureCSRFToken(ctx context.Context) error {
 	}
 
 	if err := c.execute(ctx, http.MethodGet, csrfTokenPath, nil, &csrfResp, c.accessToken, true, ""); err != nil {
-		return fmt.Errorf("retrieve Superset CSRF token: %w", err)
+		return "", fmt.Errorf("retrieve Superset CSRF token: %w", err)
 	}
 
 	if strings.TrimSpace(csrfResp.Result) == "" {
-		return errors.New("retrieve Superset CSRF token: empty token in response")
+		return "", errors.New("retrieve Superset CSRF token: empty token in response")
 	}
 
 	c.csrfToken = csrfResp.Result
 
-	return nil
+	return c.csrfToken, nil
 }
 
 func (c *Client) Get(ctx context.Context, requestPath string, responseBody any) error {
@@ -185,11 +187,12 @@ func (c *Client) do(ctx context.Context, method string, requestPath string, requ
 	csrfToken := ""
 
 	if requiresCSRF(method) {
-		if err := c.ensureCSRFToken(ctx); err != nil {
+		var err error
+
+		csrfToken, err = c.ensureCSRFToken(ctx)
+		if err != nil {
 			return err
 		}
-
-		csrfToken = c.csrfToken
 	}
 
 	return c.execute(ctx, method, requestPath, requestBody, responseBody, c.AccessToken(), true, csrfToken)

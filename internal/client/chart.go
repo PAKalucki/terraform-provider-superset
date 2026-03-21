@@ -148,6 +148,10 @@ func (c *Client) ListCharts(ctx context.Context, pageSize int) ([]Chart, error) 
 	charts := make([]Chart, 0, pageSize)
 
 	for page := 0; ; page++ {
+		if err := validatePagination(ctx, page, c.paginationLimit()); err != nil {
+			return nil, err
+		}
+
 		values := url.Values{}
 		values.Set("page", strconv.Itoa(page))
 		values.Set("page_size", strconv.Itoa(pageSize))

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -308,6 +309,86 @@ func TestClientPostFetchesCSRFTokenAndReusesCookies(t *testing.T) {
 
 	for range 2 {
 		if err := c.Post(context.Background(), "/api/v1/database/", map[string]string{"database_name": "analytics"}, nil); err != nil {
+			t.Fatalf("expected successful POST request, got error: %v", err)
+		}
+	}
+
+	if csrfCalls != 1 {
+		t.Fatalf("expected one CSRF request, got %d", csrfCalls)
+	}
+
+	if createCalls != 2 {
+		t.Fatalf("expected two create requests, got %d", createCalls)
+	}
+}
+
+func TestClientPostUsesCSRFTokenSafelyUnderConcurrency(t *testing.T) {
+	t.Parallel()
+
+	csrfCalls := 0
+	createCalls := 0
+	var mu sync.Mutex
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		switch r.URL.Path {
+		case "/api/v1/security/csrf_token/":
+			csrfCalls++
+
+			http.SetCookie(w, &http.Cookie{
+				Name:  "session",
+				Value: "csrf-cookie",
+				Path:  "/",
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"result":"csrf-token"}`))
+		case "/api/v1/database/":
+			createCalls++
+
+			if got := r.Header.Get("X-CSRFToken"); got != "csrf-token" {
+				t.Fatalf("expected CSRF token header, got %q", got)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":12,"result":{"database_name":"analytics"}}`))
+		default:
+			t.Fatalf("unexpected request path %q", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	c, err := New(Config{
+		Endpoint:    server.URL,
+		AccessToken: "static-token",
+		HTTPClient:  server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("expected client, got error: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+
+	for range 2 {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			<-start
+			errs <- c.Post(context.Background(), "/api/v1/database/", map[string]string{"database_name": "analytics"}, nil)
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
 			t.Fatalf("expected successful POST request, got error: %v", err)
 		}
 	}

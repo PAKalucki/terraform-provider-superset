@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 )
 
 var _ resource.Resource = &RoleResource{}
@@ -41,6 +42,9 @@ func (r *RoleResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 			"name": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "Role name in Superset.",
+				Validators: []validator.String{
+					nonEmptyTrimmedStringValidator(),
+				},
 			},
 		},
 	}

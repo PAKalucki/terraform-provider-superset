@@ -90,6 +90,10 @@ func (c *Client) ListDatabases(ctx context.Context, pageSize int) ([]Database, e
 	databases := make([]Database, 0, pageSize)
 
 	for page := 0; ; page++ {
+		if err := validatePagination(ctx, page, c.paginationLimit()); err != nil {
+			return nil, err
+		}
+
 		values := url.Values{}
 		values.Set("page", strconv.Itoa(page))
 		values.Set("page_size", strconv.Itoa(pageSize))
