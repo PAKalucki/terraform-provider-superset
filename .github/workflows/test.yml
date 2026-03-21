@@ -1,0 +1,52 @@
+name: Test
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit And Acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+
+      - name: Run unit tests
+        run: go test ./...
+
+      - name: Run acceptance tests
+        env:
+          SUPERSET_ENDPOINT: http://127.0.0.1:8088
+          SUPERSET_USERNAME: admin
+          SUPERSET_PASSWORD: admin
+        run: make testacc
+
+      - name: Show test environment logs on failure
+        if: failure()
+        run: docker compose -f docker_compose/docker-compose.yaml logs --no-color
+
+      - name: Tear down test environment
+        if: always()
+        run: ./scripts/testenv-down.sh

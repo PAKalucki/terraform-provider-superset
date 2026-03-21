@@ -127,5 +127,5 @@
 - [x] Tag initial release version
 
 ## Phase 12: Github Actions Workflow
-- [ ] Add test github actions workflow to run tests on every PR
+- [x] Add test github actions workflow to run tests on every PR
 - [ ] Add release github actions workflow to run on tag starting with v
