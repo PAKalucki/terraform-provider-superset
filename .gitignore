@@ -35,3 +35,4 @@ website/vendor
 *.winfile eol=crlf
 TODO.md
 REVIEW.md
+*.key
