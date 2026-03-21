@@ -1,6 +1,10 @@
 default: fmt lint install generate
 
-SUPERSET_ENDPOINT ?= http://127.0.0.1:8088
+ifeq ($(origin SUPERSET_ENDPOINT), undefined)
+SUPERSET_ENDPOINT := $(if $(SUPERSET_URL),$(SUPERSET_URL),http://127.0.0.1:8088)
+endif
+
+SUPERSET_URL ?= $(SUPERSET_ENDPOINT)
 SUPERSET_USERNAME ?= admin
 SUPERSET_PASSWORD ?= admin
 
@@ -37,6 +41,7 @@ testenv-token:
 testacc: testenv-up
 	TF_ACC=1 \
 	SUPERSET_ENDPOINT=$(SUPERSET_ENDPOINT) \
+	SUPERSET_URL=$(SUPERSET_URL) \
 	SUPERSET_USERNAME=$(SUPERSET_USERNAME) \
 	SUPERSET_PASSWORD=$(SUPERSET_PASSWORD) \
 	go test -v -cover -timeout 120m ./...

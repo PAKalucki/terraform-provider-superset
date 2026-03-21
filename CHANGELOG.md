@@ -1,3 +1,9 @@
+## 0.0.2 (2026-03-21)
+
+FEATURES:
+
+- Add provider environment variable fallbacks for endpoint and authentication settings, including `SUPERSET_URL` as an alias for `endpoint`.
+
 ## 0.0.1 (2026-03-21)
 
 FEATURES:

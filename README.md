@@ -83,6 +83,27 @@ resource "superset_database" "warehouse" {
 }
 ```
 
+Provider settings can also come from environment variables. The provider checks:
+
+- `SUPERSET_ENDPOINT` or `SUPERSET_URL` for `endpoint`
+- `SUPERSET_USERNAME` for `username`
+- `SUPERSET_PASSWORD` for `password`
+- `SUPERSET_ACCESS_TOKEN` for `access_token`
+
+Environment-driven configuration example:
+
+```shell
+export SUPERSET_URL="http://127.0.0.1:8088"
+export SUPERSET_USERNAME="admin"
+export SUPERSET_PASSWORD="admin"
+```
+
+```terraform
+provider "superset" {}
+```
+
+Terraform configuration still takes precedence over environment variables, so you can mix the two when needed.
+
 Charts can be managed with `superset_chart` once a dataset exists. The chart stores `params` and optional `query_context` as JSON strings; prefer `jsonencode(...)` in Terraform configuration for both.
 
 Dashboards can be managed with `superset_dashboard` using `chart_ids` for simple chart associations, or `position_json` when you need to control the exact Superset layout JSON.
@@ -134,7 +155,7 @@ make testenv-reset
 
 Environment variables used by acceptance tests:
 
-- `SUPERSET_ENDPOINT`
+- `SUPERSET_ENDPOINT` or `SUPERSET_URL`
 - `SUPERSET_USERNAME`
 - `SUPERSET_PASSWORD`
 - `SUPERSET_ACCESS_TOKEN` (optional alternative to username/password)

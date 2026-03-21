@@ -38,7 +38,7 @@ jobs:
 
       - name: Run acceptance tests
         env:
-          SUPERSET_ENDPOINT: http://127.0.0.1:8088
+          SUPERSET_URL: http://127.0.0.1:8088
           SUPERSET_USERNAME: admin
           SUPERSET_PASSWORD: admin
         run: make testacc

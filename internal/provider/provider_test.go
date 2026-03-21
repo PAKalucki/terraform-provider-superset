@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	supersetclient "terraform-provider-superset/internal/client"
@@ -16,10 +17,11 @@ import (
 )
 
 const (
-	testAccSupersetEndpointEnv    = "SUPERSET_ENDPOINT"
-	testAccSupersetUsernameEnv    = "SUPERSET_USERNAME"
-	testAccSupersetPasswordEnv    = "SUPERSET_PASSWORD"
-	testAccSupersetAccessTokenEnv = "SUPERSET_ACCESS_TOKEN"
+	testAccSupersetEndpointEnv    = providerEndpointEnv
+	testAccSupersetURLEnv         = providerURLEnv
+	testAccSupersetUsernameEnv    = providerUsernameEnv
+	testAccSupersetPasswordEnv    = providerPasswordEnv
+	testAccSupersetAccessTokenEnv = providerAccessTokenEnv
 )
 
 // testAccProtoV6ProviderFactories is used to instantiate a provider during acceptance testing.
@@ -32,8 +34,8 @@ var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
 func testAccPreCheck(t *testing.T) {
 	t.Helper()
 
-	if os.Getenv(testAccSupersetEndpointEnv) == "" {
-		t.Fatalf("%s must be set for acceptance tests", testAccSupersetEndpointEnv)
+	if testAccSupersetEndpoint() == "" {
+		t.Fatalf("%s or %s must be set for acceptance tests", testAccSupersetEndpointEnv, testAccSupersetURLEnv)
 	}
 	client, err := testAccSupersetClient()
 	if err != nil {
@@ -47,7 +49,7 @@ func testAccPreCheck(t *testing.T) {
 }
 
 func testAccSupersetClient() (*supersetclient.Client, error) {
-	endpoint := os.Getenv(testAccSupersetEndpointEnv)
+	endpoint := testAccSupersetEndpoint()
 	accessToken := os.Getenv(testAccSupersetAccessTokenEnv)
 	username := os.Getenv(testAccSupersetUsernameEnv)
 	password := os.Getenv(testAccSupersetPasswordEnv)
@@ -70,23 +72,16 @@ func testAccSupersetClient() (*supersetclient.Client, error) {
 }
 
 func testAccProviderConfig() string {
-	endpoint := os.Getenv(testAccSupersetEndpointEnv)
-	accessToken := os.Getenv(testAccSupersetAccessTokenEnv)
-
-	if accessToken != "" {
-		return fmt.Sprintf(`
-provider "superset" {
-  endpoint     = %q
-  access_token = %q
+	return `
+provider "superset" {}
+`
 }
-`, endpoint, accessToken)
+
+func testAccSupersetEndpoint() string {
+	endpoint := strings.TrimSpace(os.Getenv(testAccSupersetEndpointEnv))
+	if endpoint != "" {
+		return endpoint
 	}
 
-	return fmt.Sprintf(`
-provider "superset" {
-  endpoint = %q
-  username = %q
-  password = %q
-}
-`, endpoint, os.Getenv(testAccSupersetUsernameEnv), os.Getenv(testAccSupersetPasswordEnv))
+	return strings.TrimSpace(os.Getenv(testAccSupersetURLEnv))
 }

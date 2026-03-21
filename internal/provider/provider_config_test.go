@@ -39,8 +39,8 @@ func TestSupersetProviderMetadataAndSchema(t *testing.T) {
 		t.Fatal("expected endpoint schema attribute")
 	}
 
-	if !endpointAttr.Required {
-		t.Fatal("expected endpoint to be required")
+	if !endpointAttr.Optional {
+		t.Fatal("expected endpoint to be optional")
 	}
 
 	usernameAttr, ok := schemaResp.Schema.Attributes["username"].(providerschema.StringAttribute)
@@ -72,10 +72,9 @@ func TestSupersetProviderMetadataAndSchema(t *testing.T) {
 }
 
 func TestSupersetProviderValidateConfig(t *testing.T) {
-	t.Parallel()
-
 	ctx := context.Background()
 	p := testSupersetProvider(t)
+	clearProviderEnv(t)
 
 	var schemaResp frameworkprovider.SchemaResponse
 	p.Schema(ctx, frameworkprovider.SchemaRequest{}, &schemaResp)
@@ -157,8 +156,6 @@ func TestSupersetProviderValidateConfig(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
 			config := testProviderConfig(t, schemaResp.Schema, testCase.config)
 			resp := &frameworkprovider.ValidateConfigResponse{}
 
@@ -184,10 +181,9 @@ func TestSupersetProviderValidateConfig(t *testing.T) {
 }
 
 func TestSupersetProviderConfigureBuildsClient(t *testing.T) {
-	t.Parallel()
-
 	ctx := context.Background()
 	p := testSupersetProvider(t)
+	clearProviderEnv(t)
 
 	var schemaResp frameworkprovider.SchemaResponse
 	p.Schema(ctx, frameworkprovider.SchemaRequest{}, &schemaResp)
@@ -228,6 +224,183 @@ func TestSupersetProviderConfigureBuildsClient(t *testing.T) {
 	}
 }
 
+func TestSupersetProviderValidateConfigWithEnvFallback(t *testing.T) {
+	ctx := context.Background()
+	p := testSupersetProvider(t)
+	clearProviderEnv(t)
+
+	var schemaResp frameworkprovider.SchemaResponse
+	p.Schema(ctx, frameworkprovider.SchemaRequest{}, &schemaResp)
+
+	t.Setenv("SUPERSET_URL", "https://superset.example.com")
+	t.Setenv("SUPERSET_ACCESS_TOKEN", "env-token")
+
+	config := testProviderConfig(t, schemaResp.Schema, SupersetProviderModel{
+		Endpoint:    types.StringNull(),
+		AccessToken: types.StringNull(),
+		Username:    types.StringNull(),
+		Password:    types.StringNull(),
+	})
+
+	resp := &frameworkprovider.ValidateConfigResponse{}
+	p.ValidateConfig(ctx, frameworkprovider.ValidateConfigRequest{Config: config}, resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("expected no validation errors, got %v", diagnosticsText(resp.Diagnostics))
+	}
+}
+
+func TestSupersetProviderValidateConfigConfigAuthTakesPrecedenceOverEnv(t *testing.T) {
+	ctx := context.Background()
+	p := testSupersetProvider(t)
+	clearProviderEnv(t)
+
+	var schemaResp frameworkprovider.SchemaResponse
+	p.Schema(ctx, frameworkprovider.SchemaRequest{}, &schemaResp)
+
+	t.Setenv("SUPERSET_ENDPOINT", "https://env.example.com")
+	t.Setenv("SUPERSET_USERNAME", "env-admin")
+	t.Setenv("SUPERSET_PASSWORD", "env-secret")
+
+	config := testProviderConfig(t, schemaResp.Schema, SupersetProviderModel{
+		Endpoint:    types.StringValue("https://config.example.com"),
+		AccessToken: types.StringValue("config-token"),
+		Username:    types.StringNull(),
+		Password:    types.StringNull(),
+	})
+
+	resp := &frameworkprovider.ValidateConfigResponse{}
+	p.ValidateConfig(ctx, frameworkprovider.ValidateConfigRequest{Config: config}, resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("expected config authentication to override env values, got %v", diagnosticsText(resp.Diagnostics))
+	}
+}
+
+func TestSupersetProviderValidateConfigConfigUsernamePasswordTakePrecedenceOverEnvToken(t *testing.T) {
+	ctx := context.Background()
+	p := testSupersetProvider(t)
+	clearProviderEnv(t)
+
+	var schemaResp frameworkprovider.SchemaResponse
+	p.Schema(ctx, frameworkprovider.SchemaRequest{}, &schemaResp)
+
+	t.Setenv("SUPERSET_ENDPOINT", "https://env.example.com")
+	t.Setenv("SUPERSET_ACCESS_TOKEN", "env-token")
+
+	config := testProviderConfig(t, schemaResp.Schema, SupersetProviderModel{
+		Endpoint:    types.StringValue("https://config.example.com"),
+		AccessToken: types.StringNull(),
+		Username:    types.StringValue("config-admin"),
+		Password:    types.StringValue("config-secret"),
+	})
+
+	resp := &frameworkprovider.ValidateConfigResponse{}
+	p.ValidateConfig(ctx, frameworkprovider.ValidateConfigRequest{Config: config}, resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("expected config username/password to override env token, got %v", diagnosticsText(resp.Diagnostics))
+	}
+}
+
+func TestSupersetProviderValidateConfigMergesConfigAndEnvUsernamePassword(t *testing.T) {
+	ctx := context.Background()
+	p := testSupersetProvider(t)
+	clearProviderEnv(t)
+
+	var schemaResp frameworkprovider.SchemaResponse
+	p.Schema(ctx, frameworkprovider.SchemaRequest{}, &schemaResp)
+
+	t.Setenv("SUPERSET_ENDPOINT", "https://env.example.com")
+	t.Setenv("SUPERSET_PASSWORD", "env-secret")
+
+	config := testProviderConfig(t, schemaResp.Schema, SupersetProviderModel{
+		Endpoint:    types.StringNull(),
+		AccessToken: types.StringNull(),
+		Username:    types.StringValue("config-admin"),
+		Password:    types.StringNull(),
+	})
+
+	resp := &frameworkprovider.ValidateConfigResponse{}
+	p.ValidateConfig(ctx, frameworkprovider.ValidateConfigRequest{Config: config}, resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("expected config username and env password to merge, got %v", diagnosticsText(resp.Diagnostics))
+	}
+}
+
+func TestSupersetProviderConfigureBuildsClientFromEnvFallback(t *testing.T) {
+	ctx := context.Background()
+	p := testSupersetProvider(t)
+	clearProviderEnv(t)
+
+	var schemaResp frameworkprovider.SchemaResponse
+	p.Schema(ctx, frameworkprovider.SchemaRequest{}, &schemaResp)
+
+	t.Setenv("SUPERSET_URL", "https://superset.example.com")
+	t.Setenv("SUPERSET_ACCESS_TOKEN", "env-token")
+
+	config := testProviderConfig(t, schemaResp.Schema, SupersetProviderModel{
+		Endpoint:    types.StringNull(),
+		AccessToken: types.StringNull(),
+		Username:    types.StringNull(),
+		Password:    types.StringNull(),
+	})
+
+	resp := &frameworkprovider.ConfigureResponse{}
+	p.Configure(ctx, frameworkprovider.ConfigureRequest{Config: config}, resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("expected no configure errors, got %v", diagnosticsText(resp.Diagnostics))
+	}
+
+	dataSourceClient, ok := resp.DataSourceData.(*supersetclient.Client)
+	if !ok {
+		t.Fatalf("expected data source client, got %T", resp.DataSourceData)
+	}
+
+	if dataSourceClient.Endpoint() != "https://superset.example.com" {
+		t.Fatalf("expected endpoint from env fallback, got %q", dataSourceClient.Endpoint())
+	}
+
+	if dataSourceClient.AccessToken() != "env-token" {
+		t.Fatalf("expected access token from env fallback, got %q", dataSourceClient.AccessToken())
+	}
+}
+
+func TestGetEnvOrDefault(t *testing.T) {
+	t.Run("returns configured value", func(t *testing.T) {
+		t.Setenv("SUPERSET_ENDPOINT", "https://env.example.com")
+
+		value := getEnvOrDefault(types.StringValue("https://config.example.com"), "SUPERSET_ENDPOINT")
+
+		if value.ValueString() != "https://config.example.com" {
+			t.Fatalf("expected configured value, got %q", value.ValueString())
+		}
+	})
+
+	t.Run("returns first non-empty env value", func(t *testing.T) {
+		t.Setenv("SUPERSET_ENDPOINT", "")
+		t.Setenv("SUPERSET_URL", "https://env.example.com")
+
+		value := getEnvOrDefault(types.StringNull(), "SUPERSET_ENDPOINT", "SUPERSET_URL")
+
+		if value.ValueString() != "https://env.example.com" {
+			t.Fatalf("expected env value, got %q", value.ValueString())
+		}
+	})
+
+	t.Run("preserves unknown values", func(t *testing.T) {
+		t.Setenv("SUPERSET_ENDPOINT", "https://env.example.com")
+
+		value := getEnvOrDefault(types.StringUnknown(), "SUPERSET_ENDPOINT")
+
+		if !value.IsUnknown() {
+			t.Fatal("expected unknown value to be preserved")
+		}
+	})
+}
+
 func testProviderConfig(t *testing.T, schema providerschema.Schema, model SupersetProviderModel) tfsdk.Config {
 	t.Helper()
 
@@ -247,6 +420,16 @@ func testProviderConfig(t *testing.T, schema providerschema.Schema, model Supers
 		Raw:    rawValue,
 		Schema: schema,
 	}
+}
+
+func clearProviderEnv(t *testing.T) {
+	t.Helper()
+
+	t.Setenv(providerEndpointEnv, "")
+	t.Setenv(providerURLEnv, "")
+	t.Setenv(providerUsernameEnv, "")
+	t.Setenv(providerPasswordEnv, "")
+	t.Setenv(providerAccessTokenEnv, "")
 }
 
 func testSupersetProvider(t *testing.T) *SupersetProvider {

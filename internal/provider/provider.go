@@ -6,6 +6,7 @@ package provider
 import (
 	"context"
 	"net/url"
+	"os"
 	"strings"
 
 	supersetclient "terraform-provider-superset/internal/client"
@@ -22,6 +23,14 @@ import (
 // Ensure SupersetProvider satisfies various provider interfaces.
 var _ provider.Provider = &SupersetProvider{}
 var _ provider.ProviderWithValidateConfig = &SupersetProvider{}
+
+const (
+	providerEndpointEnv    = "SUPERSET_ENDPOINT"
+	providerURLEnv         = "SUPERSET_URL"
+	providerUsernameEnv    = "SUPERSET_USERNAME"
+	providerPasswordEnv    = "SUPERSET_PASSWORD"
+	providerAccessTokenEnv = "SUPERSET_ACCESS_TOKEN"
+)
 
 // SupersetProvider defines the provider implementation.
 type SupersetProvider struct {
@@ -49,20 +58,20 @@ func (p *SupersetProvider) Schema(ctx context.Context, req provider.SchemaReques
 		MarkdownDescription: "Terraform provider for Apache Superset.",
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Superset base URL, for example `https://superset.example.com`.",
-				Required:            true,
+				MarkdownDescription: "Superset base URL, for example `https://superset.example.com`. When omitted, the provider uses `SUPERSET_ENDPOINT` or `SUPERSET_URL`.",
+				Optional:            true,
 			},
 			"username": schema.StringAttribute{
-				MarkdownDescription: "Superset username used for API login. Configure with `password` when `access_token` is not provided.",
+				MarkdownDescription: "Superset username used for API login. Configure with `password` when `access_token` is not provided. When omitted, the provider uses `SUPERSET_USERNAME`.",
 				Optional:            true,
 			},
 			"password": schema.StringAttribute{
-				MarkdownDescription: "Superset password used for API login. Configure with `username` when `access_token` is not provided.",
+				MarkdownDescription: "Superset password used for API login. Configure with `username` when `access_token` is not provided. When omitted, the provider uses `SUPERSET_PASSWORD`.",
 				Optional:            true,
 				Sensitive:           true,
 			},
 			"access_token": schema.StringAttribute{
-				MarkdownDescription: "Superset API bearer token. Configure this instead of `username` and `password` when a token is already available.",
+				MarkdownDescription: "Superset API bearer token. Configure this instead of `username` and `password` when a token is already available. When omitted, the provider uses `SUPERSET_ACCESS_TOKEN`.",
 				Optional:            true,
 				Sensitive:           true,
 			},
@@ -79,7 +88,7 @@ func (p *SupersetProvider) ValidateConfig(ctx context.Context, req provider.Vali
 		return
 	}
 
-	resp.Diagnostics.Append(validateProviderModel(data)...)
+	resp.Diagnostics.Append(validateProviderModel(resolveProviderModel(data))...)
 }
 
 func (p *SupersetProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
@@ -90,6 +99,8 @@ func (p *SupersetProvider) Configure(ctx context.Context, req provider.Configure
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	data = resolveProviderModel(data)
 
 	resp.Diagnostics.Append(validateProviderModel(data)...)
 
@@ -211,6 +222,44 @@ func validateProviderModel(data SupersetProviderModel) diag.Diagnostics {
 	}
 
 	return diags
+}
+
+func resolveProviderModel(data SupersetProviderModel) SupersetProviderModel {
+	resolved := SupersetProviderModel{
+		Endpoint: getEnvOrDefault(data.Endpoint, providerEndpointEnv, providerURLEnv),
+	}
+
+	switch {
+	case data.AccessToken.IsUnknown() || hasStringValue(data.AccessToken):
+		resolved.AccessToken = getEnvOrDefault(data.AccessToken, providerAccessTokenEnv)
+		resolved.Username = data.Username
+		resolved.Password = data.Password
+	case data.Username.IsUnknown() || data.Password.IsUnknown() || hasStringValue(data.Username) || hasStringValue(data.Password):
+		resolved.AccessToken = data.AccessToken
+		resolved.Username = getEnvOrDefault(data.Username, providerUsernameEnv)
+		resolved.Password = getEnvOrDefault(data.Password, providerPasswordEnv)
+	default:
+		resolved.AccessToken = getEnvOrDefault(data.AccessToken, providerAccessTokenEnv)
+		resolved.Username = getEnvOrDefault(data.Username, providerUsernameEnv)
+		resolved.Password = getEnvOrDefault(data.Password, providerPasswordEnv)
+	}
+
+	return resolved
+}
+
+func getEnvOrDefault(value types.String, envNames ...string) types.String {
+	if value.IsUnknown() || hasStringValue(value) {
+		return value
+	}
+
+	for _, envName := range envNames {
+		envValue := strings.TrimSpace(os.Getenv(envName))
+		if envValue != "" {
+			return types.StringValue(envValue)
+		}
+	}
+
+	return value
 }
 
 func hasStringValue(value types.String) bool {
