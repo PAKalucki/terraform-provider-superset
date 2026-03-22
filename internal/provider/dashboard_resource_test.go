@@ -74,6 +74,33 @@ func TestAccDashboardDataSource(t *testing.T) {
 	})
 }
 
+func TestAccDashboardResourceNativeFilters(t *testing.T) {
+	databaseName := fmt.Sprintf("tfacc-dashboard-filters-db-%d", time.Now().UnixNano())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckDashboardChartDatasetAndDatabaseDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccDashboardResourceNativeFiltersConfig(databaseName, true),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("superset_dashboard.test", "id"),
+					resource.TestCheckResourceAttr("superset_dashboard.test", "show_native_filters", "true"),
+					resource.TestCheckResourceAttrSet("superset_dashboard.test", "native_filter_configuration"),
+				),
+			},
+			{
+				Config: testAccDashboardResourceNativeFiltersConfig(databaseName, false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckNoResourceAttr("superset_dashboard.test", "show_native_filters"),
+					resource.TestCheckNoResourceAttr("superset_dashboard.test", "native_filter_configuration"),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckDashboardChartDatasetAndDatabaseDestroy(state *terraform.State) error {
 	client, err := testAccSupersetClient()
 	if err != nil {
@@ -265,4 +292,110 @@ data "superset_dashboard" "lookup" {
   slug = superset_dashboard.test.slug
 }
 `, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI())
+}
+
+func testAccDashboardResourceNativeFiltersConfig(databaseName string, includeNativeFilters bool) string {
+	nativeFiltersBlock := ""
+	if includeNativeFilters {
+		nativeFiltersBlock = `
+  show_native_filters = true
+  native_filter_configuration = jsonencode([
+    {
+      id = "NATIVE_FILTER-event-name"
+      controlValues = {
+        enableEmptyFilter  = false
+        defaultToFirstItem = false
+        multiSelect        = true
+        searchAllOptions   = false
+        inverseSelection   = false
+      }
+      name       = "Event Name"
+      filterType = "filter_select"
+      targets = [
+        {
+          datasetId = superset_dataset.test.id
+          column = {
+            name = "event_name"
+          }
+        }
+      ]
+      defaultDataMask = {
+        extraFormData = {}
+        filterState   = {}
+        ownState      = {}
+      }
+      cascadeParentIds = []
+      scope = {
+        rootPath = ["ROOT_ID"]
+        excluded = []
+      }
+      type          = "NATIVE_FILTER"
+      description   = ""
+      chartsInScope = [superset_chart.test.id]
+      tabsInScope   = []
+    },
+    {
+      id = "NATIVE_FILTER-created-at"
+      controlValues = {
+        enableEmptyFilter = false
+      }
+      name       = "Created At"
+      filterType = "filter_time"
+      targets    = [{}]
+      defaultDataMask = {
+        extraFormData = {}
+        filterState   = {}
+        ownState      = {}
+      }
+      cascadeParentIds = []
+      scope = {
+        rootPath = ["ROOT_ID"]
+        excluded = []
+      }
+      type          = "NATIVE_FILTER"
+      description   = ""
+      chartsInScope = [superset_chart.test.id]
+      tabsInScope   = []
+    }
+  ])
+`
+	}
+
+	return fmt.Sprintf(`
+%s
+
+resource "superset_database" "test" {
+  database_name  = %q
+  sqlalchemy_uri = %q
+}
+
+resource "superset_dataset" "test" {
+  database_id           = superset_database.test.id
+  schema                = "analytics"
+  table_name            = "events"
+  main_dttm_col         = "created_at"
+  filter_select_enabled = true
+}
+
+locals {
+  datasource_uid = format("%%d__table", superset_dataset.test.id)
+}
+
+resource "superset_chart" "test" {
+  slice_name    = "Dashboard filters chart"
+  datasource_id = superset_dataset.test.id
+  viz_type      = "table"
+  params = jsonencode({
+    datasource = local.datasource_uid
+    viz_type   = "table"
+  })
+}
+
+resource "superset_dashboard" "test" {
+  dashboard_title = %q
+  slug            = %q
+  published       = true
+  chart_ids       = [superset_chart.test.id]
+%s}
+`, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI(), databaseName, databaseName, nativeFiltersBlock)
 }

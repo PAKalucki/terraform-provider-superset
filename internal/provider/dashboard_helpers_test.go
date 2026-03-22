@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	supersetclient "terraform-provider-superset/internal/client"
@@ -48,9 +49,81 @@ func TestExpandDashboardUpdateRequestRejectsMismatchedChartIDs(t *testing.T) {
 			"ROW-1": {"children":["CHART-1"],"id":"ROW-1","meta":{"0":"ROOT_ID","background":"BACKGROUND_TRANSPARENT"},"parents":["ROOT_ID","GRID_ID"],"type":"ROW"},
 			"CHART-1": {"children":[],"id":"CHART-1","meta":{"chartId":22},"parents":["ROOT_ID","GRID_ID","ROW-1"],"type":"CHART"}
 		}`),
-	}, dashboardModel{})
+	}, dashboardModel{}, nil)
 	if !requestDiags.HasError() {
 		t.Fatalf("expected mismatched chart ids to fail validation, got request %#v", request)
+	}
+}
+
+func TestExpandDashboardUpdateRequestPreservesUnmanagedNativeFiltersWhenUpdatingLayout(t *testing.T) {
+	t.Parallel()
+
+	request, requestDiags := expandDashboardUpdateRequest(context.Background(), nil, dashboardModel{
+		DashboardTitle: types.StringValue("Operations"),
+		PositionJSON: types.StringValue(`{
+			"DASHBOARD_VERSION_KEY": "v2",
+			"ROOT_ID": {"children":["GRID_ID"],"id":"ROOT_ID","type":"ROOT"},
+			"GRID_ID": {"children":["ROW-1"],"id":"GRID_ID","parents":["ROOT_ID"],"type":"GRID"},
+			"ROW-1": {"children":["CHART-1"],"id":"ROW-1","meta":{"0":"ROOT_ID","background":"BACKGROUND_TRANSPARENT"},"parents":["ROOT_ID","GRID_ID"],"type":"ROW"},
+			"CHART-1": {"children":[],"id":"CHART-1","meta":{"chartId":11},"parents":["ROOT_ID","GRID_ID","ROW-1"],"type":"CHART"}
+		}`),
+	}, dashboardModel{}, &supersetclient.Dashboard{
+		JSONMetadata: `{"positions":{"existing":"layout"},"show_native_filters":true,"native_filter_configuration":[{"id":"NATIVE_FILTER-1","filterType":"filter_select"}]}`,
+	})
+	if requestDiags.HasError() {
+		t.Fatalf("expected dashboard update request, got diagnostics: %v", requestDiags)
+	}
+
+	if request.JSONMetadata == nil {
+		t.Fatal("expected dashboard update request to include json_metadata")
+	}
+
+	var metadata map[string]any
+	if err := json.Unmarshal([]byte(*request.JSONMetadata), &metadata); err != nil {
+		t.Fatalf("expected metadata JSON to decode, got error: %v", err)
+	}
+
+	if _, ok := metadata["positions"]; !ok {
+		t.Fatalf("expected metadata to include positions, got %#v", metadata)
+	}
+
+	if showNativeFilters, ok := metadata["show_native_filters"].(bool); !ok || !showNativeFilters {
+		t.Fatalf("expected unmanaged native filter visibility to be preserved, got %#v", metadata["show_native_filters"])
+	}
+
+	filters, ok := metadata["native_filter_configuration"].([]any)
+	if !ok || len(filters) != 1 {
+		t.Fatalf("expected unmanaged native filters to be preserved, got %#v", metadata["native_filter_configuration"])
+	}
+}
+
+func TestExpandDashboardUpdateRequestIncludesNativeFiltersAndVisibility(t *testing.T) {
+	t.Parallel()
+
+	request, requestDiags := expandDashboardUpdateRequest(context.Background(), nil, dashboardModel{
+		DashboardTitle:            types.StringValue("Operations"),
+		NativeFilterConfiguration: types.StringValue(`[{"id":"NATIVE_FILTER-1","filterType":"filter_select","targets":[{"datasetId":11,"column":{"name":"country_code"}}]}]`),
+	}, dashboardModel{}, nil)
+	if requestDiags.HasError() {
+		t.Fatalf("expected dashboard update request, got diagnostics: %v", requestDiags)
+	}
+
+	if request.JSONMetadata == nil {
+		t.Fatal("expected dashboard update request to include json_metadata")
+	}
+
+	var metadata map[string]any
+	if err := json.Unmarshal([]byte(*request.JSONMetadata), &metadata); err != nil {
+		t.Fatalf("expected metadata JSON to decode, got error: %v", err)
+	}
+
+	if showNativeFilters, ok := metadata["show_native_filters"].(bool); !ok || !showNativeFilters {
+		t.Fatalf("expected native filters to be enabled automatically, got %#v", metadata["show_native_filters"])
+	}
+
+	filters, ok := metadata["native_filter_configuration"].([]any)
+	if !ok || len(filters) != 1 {
+		t.Fatalf("expected native filter configuration to be encoded, got %#v", metadata["native_filter_configuration"])
 	}
 }
 
@@ -65,6 +138,7 @@ func TestFlattenDashboardResourceModelKeepsUnmanagedFieldsNull(t *testing.T) {
 		CSS:            ".dashboard { color: red; }",
 		URL:            "/superset/dashboard/operations/",
 		PositionJSON:   `{"DASHBOARD_VERSION_KEY":"v2"}`,
+		JSONMetadata:   `{"positions":{"DASHBOARD_VERSION_KEY":"v2"},"show_native_filters":true,"native_filter_configuration":[{"id":"NATIVE_FILTER-1"}]}`,
 	}, []supersetclient.DashboardChart{
 		{ID: 11, SliceName: "Orders"},
 	})
@@ -84,7 +158,41 @@ func TestFlattenDashboardResourceModelKeepsUnmanagedFieldsNull(t *testing.T) {
 		t.Fatalf("expected unmanaged position_json to remain null, got %q", state.PositionJSON.ValueString())
 	}
 
+	if !state.ShowNativeFilters.IsNull() {
+		t.Fatalf("expected unmanaged show_native_filters to remain null, got %#v", state.ShowNativeFilters)
+	}
+
+	if !state.NativeFilterConfiguration.IsNull() {
+		t.Fatalf("expected unmanaged native_filter_configuration to remain null, got %q", state.NativeFilterConfiguration.ValueString())
+	}
+
 	if !state.ChartIDs.IsNull() {
 		t.Fatalf("expected unmanaged chart_ids to remain null, got %#v", state.ChartIDs)
+	}
+}
+
+func TestFlattenDashboardResourceModelRefreshesManagedNativeFilters(t *testing.T) {
+	t.Parallel()
+
+	state, diags := flattenDashboardResourceModel(context.Background(), dashboardModel{
+		ShowNativeFilters:         types.BoolValue(true),
+		NativeFilterConfiguration: types.StringValue(`[]`),
+	}, &supersetclient.Dashboard{
+		ID:             7,
+		UUID:           "fef350f4-d046-404c-b6c8-2713af6334c8",
+		DashboardTitle: "Operations",
+		URL:            "/superset/dashboard/operations/",
+		JSONMetadata:   `{"show_native_filters":true,"native_filter_configuration":[{"id":"NATIVE_FILTER-1","filterType":"filter_time"}]}`,
+	}, nil)
+	if diags.HasError() {
+		t.Fatalf("expected flatten to succeed, got diagnostics: %v", diags)
+	}
+
+	if state.ShowNativeFilters.IsNull() || !state.ShowNativeFilters.ValueBool() {
+		t.Fatalf("expected managed show_native_filters to refresh, got %#v", state.ShowNativeFilters)
+	}
+
+	if got := state.NativeFilterConfiguration.ValueString(); got != `[{"filterType":"filter_time","id":"NATIVE_FILTER-1"}]` {
+		t.Fatalf("expected managed native_filter_configuration to refresh, got %q", got)
 	}
 }
