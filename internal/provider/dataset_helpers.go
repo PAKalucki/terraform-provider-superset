@@ -596,11 +596,7 @@ func datasetBoolUpdateValue(plan types.Bool, remote *bool) *bool {
 }
 
 func managedDatasetBoolValue(current types.Bool, remote *bool) types.Bool {
-	if current.IsNull() || current.IsUnknown() {
-		if remote != nil && *remote {
-			return types.BoolValue(true)
-		}
-
+	if current.IsNull() {
 		return types.BoolNull()
 	}
 

@@ -71,6 +71,31 @@ func TestAccDatasetResource(t *testing.T) {
 	})
 }
 
+func TestAccDatasetResourcePreservesOmittedColumnBoolsOnCreate(t *testing.T) {
+	databaseName := fmt.Sprintf("tfacc-dataset-omitted-bools-%d", time.Now().UnixNano())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckDatasetAndDatabaseDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccDatasetResourceOmittedColumnBoolsConfig(databaseName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("superset_dataset.test", "id"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "columns.#", "2"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "columns.0.column_name", "id"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "columns.0.filterable", "true"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "columns.0.groupby", "true"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "columns.1.column_name", "pipeline_duration_s"),
+					resource.TestCheckNoResourceAttr("superset_dataset.test", "columns.1.filterable"),
+					resource.TestCheckNoResourceAttr("superset_dataset.test", "columns.1.groupby"),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckDatasetAndDatabaseDestroy(state *terraform.State) error {
 	client, err := testAccSupersetClient()
 	if err != nil {
@@ -214,6 +239,48 @@ resource "superset_dataset" "test" {
   metrics = [
     {
       metric_name = "event_rows"
+      expression  = "COUNT(*)"
+      metric_type = "count"
+    }
+  ]
+}
+`, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI())
+}
+
+func testAccDatasetResourceOmittedColumnBoolsConfig(databaseName string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "superset_database" "test" {
+  database_name  = %q
+  sqlalchemy_uri = %q
+}
+
+resource "superset_dataset" "test" {
+  database_id           = superset_database.test.id
+  schema                = "analytics"
+  table_name            = "events"
+  normalize_columns     = true
+  filter_select_enabled = true
+
+  columns = [
+    {
+      column_name = "id"
+      filterable  = true
+      groupby     = true
+      is_active   = true
+      type        = "INTEGER"
+    },
+    {
+      column_name = "pipeline_duration_s"
+      is_active   = true
+      type        = "DOUBLE"
+    }
+  ]
+
+  metrics = [
+    {
+      metric_name = "run_count"
       expression  = "COUNT(*)"
       metric_type = "count"
     }
