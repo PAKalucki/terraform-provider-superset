@@ -13,6 +13,8 @@ Use `chart_ids` for the common case where you want Terraform to associate charts
 
 The provider-generated layout is intentionally simple: charts are placed in a single row with fixed Superset dimensions. Switch to `position_json` when you need custom sizing or placement.
 
+Use `native_filter_configuration` for Superset native dashboard filters. Prefer `jsonencode(...)` and let Terraform manage the JSON array directly. When `native_filter_configuration` is configured and `show_native_filters` is omitted, the provider enables native filters automatically.
+
 ## Example Usage
 
 ```terraform
@@ -102,8 +104,10 @@ resource "superset_dashboard" "operations" {
 
 - `chart_ids` (List of Number) Optional list of Superset chart identifiers associated with the dashboard. When configured without `position_json`, the provider generates a simple default layout for those charts.
 - `css` (String) Optional custom CSS for the dashboard.
+- `native_filter_configuration` (String) Optional native filter configuration JSON array.
 - `position_json` (String) Optional Superset dashboard layout JSON string. When configured, the chart identifiers referenced in the layout become the authoritative dashboard-chart associations.
 - `published` (Boolean) Whether the dashboard is published in Superset.
+- `show_native_filters` (Boolean) Whether native dashboard filters are shown in Superset.
 - `slug` (String) Optional dashboard slug used in the Superset URL.
 
 ### Read-Only

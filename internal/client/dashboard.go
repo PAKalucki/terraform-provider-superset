@@ -18,6 +18,7 @@ type Dashboard struct {
 	Published      *bool  `json:"published,omitempty"`
 	CSS            string `json:"css,omitempty"`
 	PositionJSON   string `json:"position_json,omitempty"`
+	JSONMetadata   string `json:"json_metadata,omitempty"`
 }
 
 type DashboardChart struct {
@@ -59,6 +60,43 @@ type dashboardListResponse struct {
 
 type dashboardChartsResponse struct {
 	Result []DashboardChart `json:"result"`
+}
+
+func (d *Dashboard) UnmarshalJSON(data []byte) error {
+	type dashboardAlias struct {
+		ID             int64           `json:"id,omitempty"`
+		UUID           string          `json:"uuid,omitempty"`
+		DashboardTitle string          `json:"dashboard_title,omitempty"`
+		Slug           string          `json:"slug,omitempty"`
+		URL            string          `json:"url,omitempty"`
+		Published      *bool           `json:"published,omitempty"`
+		CSS            string          `json:"css,omitempty"`
+		PositionJSON   string          `json:"position_json,omitempty"`
+		JSONMetadata   json.RawMessage `json:"json_metadata,omitempty"`
+	}
+
+	var aux dashboardAlias
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	jsonMetadata, err := normalizeDashboardMetadataJSON(aux.JSONMetadata)
+	if err != nil {
+		return err
+	}
+
+	d.ID = aux.ID
+	d.UUID = aux.UUID
+	d.DashboardTitle = aux.DashboardTitle
+	d.Slug = aux.Slug
+	d.URL = aux.URL
+	d.Published = aux.Published
+	d.CSS = aux.CSS
+	d.PositionJSON = aux.PositionJSON
+	d.JSONMetadata = jsonMetadata
+
+	return nil
 }
 
 func (c *Client) CreateDashboard(ctx context.Context, request DashboardCreateRequest) (*Dashboard, error) {
@@ -202,4 +240,45 @@ func dashboardPath(idOrSlug string) (string, error) {
 	}
 
 	return fmt.Sprintf("/api/v1/dashboard/%s", url.PathEscape(normalized)), nil
+}
+
+func normalizeDashboardMetadataJSON(value json.RawMessage) (string, error) {
+	if len(value) == 0 || string(value) == "null" {
+		return "", nil
+	}
+
+	if len(value) > 0 && value[0] == '"' {
+		var text string
+		if err := json.Unmarshal(value, &text); err != nil {
+			return "", err
+		}
+
+		if strings.TrimSpace(text) == "" {
+			return "", nil
+		}
+
+		var decoded any
+		if err := json.Unmarshal([]byte(text), &decoded); err != nil {
+			return "", err
+		}
+
+		normalized, err := json.Marshal(decoded)
+		if err != nil {
+			return "", err
+		}
+
+		return string(normalized), nil
+	}
+
+	var decoded any
+	if err := json.Unmarshal(value, &decoded); err != nil {
+		return "", err
+	}
+
+	normalized, err := json.Marshal(decoded)
+	if err != nil {
+		return "", err
+	}
+
+	return string(normalized), nil
 }

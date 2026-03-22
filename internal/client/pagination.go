@@ -17,7 +17,7 @@ func validatePagination(ctx context.Context, page int, maxPages int) error {
 	}
 
 	if page >= maxPages {
-		return fmt.Errorf("Superset API pagination exceeded %d pages", maxPages)
+		return fmt.Errorf("superset API pagination exceeded %d pages", maxPages)
 	}
 
 	return nil

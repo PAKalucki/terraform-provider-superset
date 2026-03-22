@@ -64,6 +64,10 @@ func (r *DashboardResource) Schema(ctx context.Context, req resource.SchemaReque
 				Optional:            true,
 				MarkdownDescription: "Whether the dashboard is published in Superset.",
 			},
+			"show_native_filters": schema.BoolAttribute{
+				Optional:            true,
+				MarkdownDescription: "Whether native dashboard filters are shown in Superset. When `native_filter_configuration` is configured and this attribute is omitted, the provider enables native filters automatically.",
+			},
 			"chart_ids": schema.ListAttribute{
 				Optional:            true,
 				ElementType:         types.Int64Type,
@@ -72,6 +76,10 @@ func (r *DashboardResource) Schema(ctx context.Context, req resource.SchemaReque
 			"position_json": schema.StringAttribute{
 				Optional:            true,
 				MarkdownDescription: "Optional Superset dashboard layout JSON string. When configured, the chart identifiers referenced in the layout become the authoritative dashboard-chart associations.",
+			},
+			"native_filter_configuration": schema.StringAttribute{
+				Optional:            true,
+				MarkdownDescription: "Optional native filter configuration JSON array. Prefer `jsonencode(...)` so Terraform and Superset use the same normalized JSON representation.",
 			},
 			"url": schema.StringAttribute{
 				Computed:            true,
@@ -153,7 +161,7 @@ func (r *DashboardResource) Create(ctx context.Context, req resource.CreateReque
 
 	dashboardID = created.ID
 
-	updateRequest, diags := expandDashboardUpdateRequest(ctx, r.client, data, dashboardModel{})
+	updateRequest, diags := expandDashboardUpdateRequest(ctx, r.client, data, dashboardModel{}, nil)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -258,7 +266,17 @@ func (r *DashboardResource) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 
-	updateRequest, diags := expandDashboardUpdateRequest(ctx, r.client, data, current)
+	remoteDashboard, err := r.client.GetDashboard(ctx, strconv.FormatInt(current.ID.ValueInt64(), 10))
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to Read Superset Dashboard Before Update",
+			err.Error(),
+		)
+
+		return
+	}
+
+	updateRequest, diags := expandDashboardUpdateRequest(ctx, r.client, data, current, remoteDashboard)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

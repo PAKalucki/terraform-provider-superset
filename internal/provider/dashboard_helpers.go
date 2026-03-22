@@ -16,15 +16,17 @@ import (
 )
 
 type dashboardModel struct {
-	ID             types.Int64  `tfsdk:"id"`
-	UUID           types.String `tfsdk:"uuid"`
-	DashboardTitle types.String `tfsdk:"dashboard_title"`
-	Slug           types.String `tfsdk:"slug"`
-	CSS            types.String `tfsdk:"css"`
-	Published      types.Bool   `tfsdk:"published"`
-	ChartIDs       types.List   `tfsdk:"chart_ids"`
-	PositionJSON   types.String `tfsdk:"position_json"`
-	URL            types.String `tfsdk:"url"`
+	ID                        types.Int64  `tfsdk:"id"`
+	UUID                      types.String `tfsdk:"uuid"`
+	DashboardTitle            types.String `tfsdk:"dashboard_title"`
+	Slug                      types.String `tfsdk:"slug"`
+	CSS                       types.String `tfsdk:"css"`
+	Published                 types.Bool   `tfsdk:"published"`
+	ShowNativeFilters         types.Bool   `tfsdk:"show_native_filters"`
+	ChartIDs                  types.List   `tfsdk:"chart_ids"`
+	PositionJSON              types.String `tfsdk:"position_json"`
+	NativeFilterConfiguration types.String `tfsdk:"native_filter_configuration"`
+	URL                       types.String `tfsdk:"url"`
 }
 
 type dashboardPositionChart struct {
@@ -57,7 +59,7 @@ func expandDashboardCreateRequest(data dashboardModel) (supersetclient.Dashboard
 	}, diags
 }
 
-func expandDashboardUpdateRequest(ctx context.Context, client *supersetclient.Client, plan dashboardModel, current dashboardModel) (supersetclient.DashboardUpdateRequest, diag.Diagnostics) {
+func expandDashboardUpdateRequest(ctx context.Context, client *supersetclient.Client, plan dashboardModel, current dashboardModel, remote *supersetclient.Dashboard) (supersetclient.DashboardUpdateRequest, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	dashboardTitle := strings.TrimSpace(stringValue(plan.DashboardTitle))
@@ -72,7 +74,11 @@ func expandDashboardUpdateRequest(ctx context.Context, client *supersetclient.Cl
 	chartIDs, chartIDDiags := dashboardChartIDsFromList(ctx, plan.ChartIDs)
 	diags.Append(chartIDDiags...)
 
+	nativeFilterConfiguration, nativeFilterDiags := normalizeDashboardNativeFilterConfiguration(plan.NativeFilterConfiguration)
+	diags.Append(nativeFilterDiags...)
+
 	var (
+		normalizedPositionJSON types.String
 		positionJSON           types.String
 		positionChartIDs       []int64
 		includeDashboardLayout bool
@@ -94,6 +100,10 @@ func expandDashboardUpdateRequest(ctx context.Context, client *supersetclient.Cl
 	currentChartsManaged := !current.ChartIDs.IsNull() && !current.ChartIDs.IsUnknown()
 	planPositionManaged := !plan.PositionJSON.IsNull() && !plan.PositionJSON.IsUnknown()
 	currentPositionManaged := !current.PositionJSON.IsNull() && !current.PositionJSON.IsUnknown()
+	planNativeFiltersManaged := !plan.NativeFilterConfiguration.IsNull() && !plan.NativeFilterConfiguration.IsUnknown()
+	currentNativeFiltersManaged := !current.NativeFilterConfiguration.IsNull() && !current.NativeFilterConfiguration.IsUnknown()
+	planShowNativeFiltersManaged := !plan.ShowNativeFilters.IsNull() && !plan.ShowNativeFilters.IsUnknown()
+	currentShowNativeFiltersManaged := !current.ShowNativeFilters.IsNull() && !current.ShowNativeFilters.IsUnknown()
 
 	if planPositionManaged && planChartsManaged && !equalInt64Slices(chartIDs, positionChartIDs) {
 		diags.AddAttributeError(
@@ -106,6 +116,7 @@ func expandDashboardUpdateRequest(ctx context.Context, client *supersetclient.Cl
 	}
 
 	includeDashboardLayout = planChartsManaged || currentChartsManaged || planPositionManaged || currentPositionManaged
+	includeDashboardMetadata := includeDashboardLayout || planNativeFiltersManaged || currentNativeFiltersManaged || planShowNativeFiltersManaged || currentShowNativeFiltersManaged
 
 	request := supersetclient.DashboardUpdateRequest{
 		DashboardTitle: dashboardTitle,
@@ -118,22 +129,36 @@ func expandDashboardUpdateRequest(ctx context.Context, client *supersetclient.Cl
 			!current.Published.IsNull() && !current.Published.IsUnknown(),
 	}
 
-	if !includeDashboardLayout {
+	if !includeDashboardMetadata {
 		return request, diags
 	}
 
-	normalizedPositionJSON, layoutDiags := resolveDashboardPositionJSON(ctx, client, dashboardTitle, chartIDs, positionJSON, planChartsManaged, planPositionManaged, currentChartsManaged || currentPositionManaged)
-	diags.Append(layoutDiags...)
-	if diags.HasError() {
-		return supersetclient.DashboardUpdateRequest{}, diags
+	if includeDashboardLayout {
+		layoutPositionJSON, layoutDiags := resolveDashboardPositionJSON(ctx, client, dashboardTitle, chartIDs, positionJSON, planChartsManaged, planPositionManaged, currentChartsManaged || currentPositionManaged)
+		diags.Append(layoutDiags...)
+		if diags.HasError() {
+			return supersetclient.DashboardUpdateRequest{}, diags
+		}
+
+		normalizedPositionJSON = layoutPositionJSON
+		request.PositionJSON = stringPointerValue(normalizedPositionJSON)
+		request.IncludePositionJSON = true
 	}
 
-	jsonMetadata, metadataDiags := buildDashboardJSONMetadata(normalizedPositionJSON)
+	remoteMetadata, remoteMetadataDiags := dashboardMetadataMapFromRemote(remote)
+	diags.Append(remoteMetadataDiags...)
+
+	jsonMetadata, metadataDiags := buildDashboardJSONMetadata(
+		remoteMetadata,
+		normalizedPositionJSON,
+		nativeFilterConfiguration,
+		plan,
+		current,
+		includeDashboardLayout,
+	)
 	diags.Append(metadataDiags...)
 
-	request.PositionJSON = stringPointerValue(normalizedPositionJSON)
 	request.JSONMetadata = stringPointerValue(jsonMetadata)
-	request.IncludePositionJSON = true
 	request.IncludeJSONMetadata = true
 
 	return request, diags
@@ -142,15 +167,26 @@ func expandDashboardUpdateRequest(ctx context.Context, client *supersetclient.Cl
 func flattenDashboardResourceModel(ctx context.Context, current dashboardModel, remote *supersetclient.Dashboard, remoteCharts []supersetclient.DashboardChart) (dashboardModel, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
+	metadata, metadataDiags := dashboardMetadataMapFromRemote(remote)
+	diags.Append(metadataDiags...)
+
+	showNativeFilters, showNativeFiltersDiags := dashboardShowNativeFiltersResourceValue(current.ShowNativeFilters, metadata)
+	diags.Append(showNativeFiltersDiags...)
+
+	nativeFilterConfiguration, nativeFilterConfigurationDiags := dashboardNativeFilterConfigurationResourceValue(current.NativeFilterConfiguration, metadata)
+	diags.Append(nativeFilterConfigurationDiags...)
+
 	state := dashboardModel{
-		ID:             types.Int64Value(remote.ID),
-		UUID:           stringTypeValue(remote.UUID),
-		DashboardTitle: stringTypeValue(remote.DashboardTitle),
-		Slug:           managedStringValue(current.Slug, remote.Slug),
-		CSS:            managedStringValue(current.CSS, remote.CSS),
-		Published:      managedDashboardBoolValue(current.Published, remote.Published),
-		PositionJSON:   managedDashboardPositionValue(current.PositionJSON, remote.PositionJSON),
-		URL:            stringTypeValue(remote.URL),
+		ID:                        types.Int64Value(remote.ID),
+		UUID:                      stringTypeValue(remote.UUID),
+		DashboardTitle:            stringTypeValue(remote.DashboardTitle),
+		Slug:                      managedStringValue(current.Slug, remote.Slug),
+		CSS:                       managedStringValue(current.CSS, remote.CSS),
+		Published:                 managedDashboardBoolValue(current.Published, remote.Published),
+		ShowNativeFilters:         showNativeFilters,
+		PositionJSON:              managedDashboardPositionValue(current.PositionJSON, remote.PositionJSON),
+		NativeFilterConfiguration: nativeFilterConfiguration,
+		URL:                       stringTypeValue(remote.URL),
 	}
 
 	chartIDs, chartIDDiags := flattenDashboardChartIDs(ctx, current.ChartIDs, remoteCharts)
@@ -169,16 +205,27 @@ func flattenDashboardDataSourceModel(ctx context.Context, remote *supersetclient
 	chartIDs, chartIDDiags := int64ListValueFromCharts(ctx, remoteCharts)
 	diags.Append(chartIDDiags...)
 
+	metadata, metadataDiags := dashboardMetadataMapFromRemote(remote)
+	diags.Append(metadataDiags...)
+
+	showNativeFilters, showNativeFiltersDiags := dashboardShowNativeFiltersDataSourceValue(metadata)
+	diags.Append(showNativeFiltersDiags...)
+
+	nativeFilterConfiguration, nativeFilterConfigurationDiags := dashboardNativeFilterConfigurationDataSourceValue(metadata)
+	diags.Append(nativeFilterConfigurationDiags...)
+
 	return dashboardModel{
-		ID:             types.Int64Value(remote.ID),
-		UUID:           stringTypeValue(remote.UUID),
-		DashboardTitle: stringTypeValue(remote.DashboardTitle),
-		Slug:           stringTypeValue(remote.Slug),
-		CSS:            stringTypeValue(remote.CSS),
-		Published:      boolTypeValue(remote.Published),
-		ChartIDs:       chartIDs,
-		PositionJSON:   positionJSON,
-		URL:            stringTypeValue(remote.URL),
+		ID:                        types.Int64Value(remote.ID),
+		UUID:                      stringTypeValue(remote.UUID),
+		DashboardTitle:            stringTypeValue(remote.DashboardTitle),
+		Slug:                      stringTypeValue(remote.Slug),
+		CSS:                       stringTypeValue(remote.CSS),
+		Published:                 boolTypeValue(remote.Published),
+		ShowNativeFilters:         showNativeFilters,
+		ChartIDs:                  chartIDs,
+		PositionJSON:              positionJSON,
+		NativeFilterConfiguration: nativeFilterConfiguration,
+		URL:                       stringTypeValue(remote.URL),
 	}, diags
 }
 
@@ -385,38 +432,57 @@ func buildDashboardPositionJSON(dashboardTitle string, charts []dashboardPositio
 	return string(normalized), nil
 }
 
-func buildDashboardJSONMetadata(positionJSON types.String) (types.String, diag.Diagnostics) {
+func buildDashboardJSONMetadata(remoteMetadata map[string]any, positionJSON types.String, nativeFilterConfiguration types.String, plan dashboardModel, current dashboardModel, includeDashboardLayout bool) (types.String, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
-	if positionJSON.IsNull() || positionJSON.IsUnknown() {
-		return types.StringNull(), diags
+	metadata := cloneDashboardMetadata(remoteMetadata)
+
+	if includeDashboardLayout {
+		positions, positionsDiags := decodeDashboardPositionMetadata(positionJSON)
+		diags.Append(positionsDiags...)
+		if diags.HasError() {
+			return types.StringNull(), diags
+		}
+
+		if positions == nil {
+			delete(metadata, "positions")
+		} else {
+			metadata["positions"] = positions
+		}
 	}
 
-	var positions any
-	if err := json.Unmarshal([]byte(positionJSON.ValueString()), &positions); err != nil {
-		diags.AddAttributeError(
-			path.Root("position_json"),
-			"Invalid Dashboard Layout JSON",
-			fmt.Sprintf("Unable to decode normalized dashboard layout JSON: %v", err),
-		)
+	manageNativeFilters := !plan.NativeFilterConfiguration.IsNull() && !plan.NativeFilterConfiguration.IsUnknown() ||
+		!current.NativeFilterConfiguration.IsNull() && !current.NativeFilterConfiguration.IsUnknown()
+	if manageNativeFilters {
+		nativeFilters, nativeFiltersDiags := decodeDashboardNativeFilterConfiguration(nativeFilterConfiguration)
+		diags.Append(nativeFiltersDiags...)
+		if diags.HasError() {
+			return types.StringNull(), diags
+		}
 
-		return types.StringNull(), diags
+		if nativeFilters == nil {
+			delete(metadata, "native_filter_configuration")
+		} else {
+			metadata["native_filter_configuration"] = nativeFilters
+		}
 	}
 
-	metadata, err := json.Marshal(map[string]any{
-		"positions": positions,
-	})
+	if showNativeFilters, includeShowNativeFilters := resolveDashboardShowNativeFilters(plan.ShowNativeFilters, current.ShowNativeFilters, nativeFilterConfiguration, plan.NativeFilterConfiguration, current.NativeFilterConfiguration); includeShowNativeFilters {
+		if showNativeFilters == nil {
+			delete(metadata, "show_native_filters")
+		} else {
+			metadata["show_native_filters"] = *showNativeFilters
+		}
+	}
+
+	normalized, err := json.Marshal(metadata)
 	if err != nil {
-		diags.AddAttributeError(
-			path.Root("position_json"),
-			"Invalid Dashboard Layout JSON",
-			fmt.Sprintf("Unable to build dashboard metadata payload: %v", err),
-		)
+		diags.AddError("Invalid Dashboard Metadata", fmt.Sprintf("Unable to build dashboard metadata payload: %v", err))
 
 		return types.StringNull(), diags
 	}
 
-	return types.StringValue(string(metadata)), diags
+	return types.StringValue(string(normalized)), diags
 }
 
 func extractDashboardChartIDs(positionJSON string) ([]int64, diag.Diagnostics) {
@@ -533,6 +599,180 @@ func managedDashboardPositionValue(current types.String, remote string) types.St
 	}
 
 	return normalized
+}
+
+func normalizeDashboardNativeFilterConfiguration(value types.String) (types.String, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	if value.IsNull() || value.IsUnknown() {
+		return value, diags
+	}
+
+	normalized, normalizeDiags := normalizeOptionalJSONString(value, path.Root("native_filter_configuration"))
+	diags.Append(normalizeDiags...)
+	if diags.HasError() || normalized.IsNull() || normalized.IsUnknown() {
+		return normalized, diags
+	}
+
+	var filters []any
+	if err := json.Unmarshal([]byte(normalized.ValueString()), &filters); err != nil {
+		diags.AddAttributeError(
+			path.Root("native_filter_configuration"),
+			"Invalid Native Filter Configuration JSON",
+			fmt.Sprintf("`native_filter_configuration` must be a valid JSON array: %v", err),
+		)
+
+		return types.StringNull(), diags
+	}
+
+	return normalized, diags
+}
+
+func dashboardMetadataMapFromRemote(remote *supersetclient.Dashboard) (map[string]any, diag.Diagnostics) {
+	if remote == nil || strings.TrimSpace(remote.JSONMetadata) == "" {
+		return map[string]any{}, nil
+	}
+
+	var metadata map[string]any
+	if err := json.Unmarshal([]byte(remote.JSONMetadata), &metadata); err != nil {
+		var diags diag.Diagnostics
+		diags.AddError("Invalid Dashboard Metadata", fmt.Sprintf("Unable to decode Superset dashboard metadata JSON: %v", err))
+
+		return map[string]any{}, diags
+	}
+
+	if metadata == nil {
+		return map[string]any{}, nil
+	}
+
+	return metadata, nil
+}
+
+func decodeDashboardPositionMetadata(positionJSON types.String) (any, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	if positionJSON.IsNull() || positionJSON.IsUnknown() {
+		return nil, diags
+	}
+
+	var positions any
+	if err := json.Unmarshal([]byte(positionJSON.ValueString()), &positions); err != nil {
+		diags.AddAttributeError(
+			path.Root("position_json"),
+			"Invalid Dashboard Layout JSON",
+			fmt.Sprintf("Unable to decode normalized dashboard layout JSON: %v", err),
+		)
+
+		return nil, diags
+	}
+
+	return positions, diags
+}
+
+func decodeDashboardNativeFilterConfiguration(value types.String) (any, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	if value.IsNull() || value.IsUnknown() {
+		return nil, diags
+	}
+
+	var filters any
+	if err := json.Unmarshal([]byte(value.ValueString()), &filters); err != nil {
+		diags.AddAttributeError(
+			path.Root("native_filter_configuration"),
+			"Invalid Native Filter Configuration JSON",
+			fmt.Sprintf("Unable to decode normalized native filter configuration JSON: %v", err),
+		)
+
+		return nil, diags
+	}
+
+	return filters, diags
+}
+
+func resolveDashboardShowNativeFilters(planShowNativeFilters types.Bool, currentShowNativeFilters types.Bool, normalizedNativeFilterConfiguration types.String, planNativeFilterConfiguration types.String, currentNativeFilterConfiguration types.String) (*bool, bool) {
+	if !planShowNativeFilters.IsNull() && !planShowNativeFilters.IsUnknown() {
+		value := planShowNativeFilters.ValueBool()
+
+		return &value, true
+	}
+
+	if !normalizedNativeFilterConfiguration.IsNull() && !normalizedNativeFilterConfiguration.IsUnknown() {
+		value := true
+
+		return &value, true
+	}
+
+	if (!planNativeFilterConfiguration.IsNull() && !planNativeFilterConfiguration.IsUnknown()) ||
+		(!currentNativeFilterConfiguration.IsNull() && !currentNativeFilterConfiguration.IsUnknown()) ||
+		(!currentShowNativeFilters.IsNull() && !currentShowNativeFilters.IsUnknown()) {
+		return nil, true
+	}
+
+	return nil, false
+}
+
+func cloneDashboardMetadata(metadata map[string]any) map[string]any {
+	if len(metadata) == 0 {
+		return map[string]any{}
+	}
+
+	clone := make(map[string]any, len(metadata))
+	for key, value := range metadata {
+		clone[key] = value
+	}
+
+	return clone
+}
+
+func dashboardShowNativeFiltersResourceValue(current types.Bool, metadata map[string]any) (types.Bool, diag.Diagnostics) {
+	if current.IsNull() || current.IsUnknown() {
+		return types.BoolNull(), nil
+	}
+
+	return dashboardShowNativeFiltersDataSourceValue(metadata)
+}
+
+func dashboardShowNativeFiltersDataSourceValue(metadata map[string]any) (types.Bool, diag.Diagnostics) {
+	value, ok := metadata["show_native_filters"]
+	if !ok || value == nil {
+		return types.BoolNull(), nil
+	}
+
+	showNativeFilters, ok := value.(bool)
+	if !ok {
+		var diags diag.Diagnostics
+		diags.AddError("Invalid Dashboard Metadata", fmt.Sprintf("Expected `show_native_filters` to be a boolean, got %T.", value))
+
+		return types.BoolNull(), diags
+	}
+
+	return types.BoolValue(showNativeFilters), nil
+}
+
+func dashboardNativeFilterConfigurationResourceValue(current types.String, metadata map[string]any) (types.String, diag.Diagnostics) {
+	if current.IsNull() || current.IsUnknown() {
+		return types.StringNull(), nil
+	}
+
+	return dashboardNativeFilterConfigurationDataSourceValue(metadata)
+}
+
+func dashboardNativeFilterConfigurationDataSourceValue(metadata map[string]any) (types.String, diag.Diagnostics) {
+	value, ok := metadata["native_filter_configuration"]
+	if !ok || value == nil {
+		return types.StringNull(), nil
+	}
+
+	normalized, err := json.Marshal(value)
+	if err != nil {
+		var diags diag.Diagnostics
+		diags.AddError("Invalid Dashboard Metadata", fmt.Sprintf("Unable to normalize `native_filter_configuration`: %v", err))
+
+		return types.StringNull(), diags
+	}
+
+	return types.StringValue(string(normalized)), nil
 }
 
 func equalInt64Slices(left []int64, right []int64) bool {

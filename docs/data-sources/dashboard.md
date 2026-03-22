@@ -29,7 +29,9 @@ data "superset_dashboard" "operations" {
 
 - `chart_ids` (List of Number) Superset chart identifiers associated with the dashboard.
 - `css` (String) Custom dashboard CSS.
+- `native_filter_configuration` (String) Superset native filter configuration JSON array.
 - `position_json` (String) Superset dashboard layout JSON string.
 - `published` (Boolean) Whether the dashboard is published in Superset.
+- `show_native_filters` (Boolean) Whether native dashboard filters are shown in Superset.
 - `url` (String) Resolved Superset dashboard URL.
 - `uuid` (String) Superset dashboard UUID.

@@ -40,6 +40,23 @@ func TestDashboardUpdateRequestMarshalJSONIncludesNullsForClears(t *testing.T) {
 	}
 }
 
+func TestDashboardUnmarshalJSONNormalizesMetadata(t *testing.T) {
+	t.Parallel()
+
+	var dashboard Dashboard
+	if err := json.Unmarshal([]byte(`{
+		"id": 7,
+		"dashboard_title": "Operations",
+		"json_metadata": "{\"positions\":{\"ROOT_ID\":{\"type\":\"ROOT\"}},\"show_native_filters\":true,\"native_filter_configuration\":[{\"id\":\"NATIVE_FILTER-1\"}]}"
+	}`), &dashboard); err != nil {
+		t.Fatalf("expected dashboard JSON to decode, got error: %v", err)
+	}
+
+	if got := dashboard.JSONMetadata; got != `{"native_filter_configuration":[{"id":"NATIVE_FILTER-1"}],"positions":{"ROOT_ID":{"type":"ROOT"}},"show_native_filters":true}` {
+		t.Fatalf("expected normalized dashboard metadata, got %q", got)
+	}
+}
+
 func TestListDashboardsPaginates(t *testing.T) {
 	t.Parallel()
 

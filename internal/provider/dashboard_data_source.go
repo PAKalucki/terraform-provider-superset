@@ -59,6 +59,10 @@ func (d *DashboardDataSource) Schema(ctx context.Context, req datasource.SchemaR
 				Computed:            true,
 				MarkdownDescription: "Whether the dashboard is published in Superset.",
 			},
+			"show_native_filters": schema.BoolAttribute{
+				Computed:            true,
+				MarkdownDescription: "Whether native dashboard filters are shown in Superset.",
+			},
 			"chart_ids": schema.ListAttribute{
 				Computed:            true,
 				ElementType:         types.Int64Type,
@@ -67,6 +71,10 @@ func (d *DashboardDataSource) Schema(ctx context.Context, req datasource.SchemaR
 			"position_json": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Superset dashboard layout JSON string.",
+			},
+			"native_filter_configuration": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Superset native filter configuration JSON array.",
 			},
 			"url": schema.StringAttribute{
 				Computed:            true,
