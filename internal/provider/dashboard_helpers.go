@@ -559,17 +559,64 @@ func flattenDashboardChartIDs(ctx context.Context, current types.List, remoteCha
 		return types.ListNull(types.Int64Type), nil
 	}
 
-	return int64ListValueFromCharts(ctx, remoteCharts)
+	currentChartIDs, diags := dashboardChartIDsFromList(ctx, current)
+	if diags.HasError() {
+		return types.ListNull(types.Int64Type), diags
+	}
+
+	return types.ListValueFrom(ctx, types.Int64Type, orderedDashboardChartIDs(remoteCharts, currentChartIDs))
 }
 
 func int64ListValueFromCharts(ctx context.Context, remoteCharts []supersetclient.DashboardChart) (types.List, diag.Diagnostics) {
-	chartIDs := make([]int64, 0, len(remoteCharts))
+	return types.ListValueFrom(ctx, types.Int64Type, orderedDashboardChartIDs(remoteCharts, nil))
+}
+
+func orderedDashboardChartIDs(remoteCharts []supersetclient.DashboardChart, preferredOrder []int64) []int64 {
+	remoteChartIDs := make([]int64, 0, len(remoteCharts))
+	seen := make(map[int64]struct{}, len(remoteCharts))
 
 	for _, chart := range remoteCharts {
-		chartIDs = append(chartIDs, chart.ID)
+		if _, ok := seen[chart.ID]; ok {
+			continue
+		}
+
+		seen[chart.ID] = struct{}{}
+		remoteChartIDs = append(remoteChartIDs, chart.ID)
 	}
 
-	return types.ListValueFrom(ctx, types.Int64Type, chartIDs)
+	if len(preferredOrder) == 0 {
+		sort.Slice(remoteChartIDs, func(i, j int) bool { return remoteChartIDs[i] < remoteChartIDs[j] })
+		return remoteChartIDs
+	}
+
+	ordered := make([]int64, 0, len(remoteChartIDs))
+	used := make(map[int64]struct{}, len(remoteChartIDs))
+
+	for _, chartID := range preferredOrder {
+		if _, ok := seen[chartID]; !ok {
+			continue
+		}
+
+		if _, ok := used[chartID]; ok {
+			continue
+		}
+
+		ordered = append(ordered, chartID)
+		used[chartID] = struct{}{}
+	}
+
+	extraChartIDs := make([]int64, 0, len(remoteChartIDs)-len(ordered))
+	for _, chartID := range remoteChartIDs {
+		if _, ok := used[chartID]; ok {
+			continue
+		}
+
+		extraChartIDs = append(extraChartIDs, chartID)
+	}
+
+	sort.Slice(extraChartIDs, func(i, j int) bool { return extraChartIDs[i] < extraChartIDs[j] })
+
+	return append(ordered, extraChartIDs...)
 }
 
 func managedStringValue(current types.String, remote string) types.String {

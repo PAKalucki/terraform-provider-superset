@@ -1,5 +1,13 @@
 ## Unreleased
 
+## 0.0.6 (2026-03-22)
+
+BUG FIXES:
+
+- Preserve managed dashboard `chart_ids` order during state refresh so Terraform does not fail after apply when Superset returns dashboard charts in a different order.
+
+## 0.0.5 (2026-03-22)
+
 FEATURES:
 
 - Add dashboard native filter support with `show_native_filters` and `native_filter_configuration` on the dashboard resource and data source.

@@ -196,3 +196,70 @@ func TestFlattenDashboardResourceModelRefreshesManagedNativeFilters(t *testing.T
 		t.Fatalf("expected managed native_filter_configuration to refresh, got %q", got)
 	}
 }
+
+func TestFlattenDashboardChartIDsPreservesManagedOrder(t *testing.T) {
+	t.Parallel()
+
+	current, diags := types.ListValueFrom(context.Background(), types.Int64Type, []int64{24, 19, 22, 21, 23, 20})
+	if diags.HasError() {
+		t.Fatalf("expected managed chart_ids list to build, got diagnostics: %v", diags)
+	}
+
+	chartIDs, diags := flattenDashboardChartIDs(context.Background(), current, []supersetclient.DashboardChart{
+		{ID: 19, SliceName: "Runs By Status"},
+		{ID: 20, SliceName: "Recent Runs"},
+		{ID: 21, SliceName: "Marker Failures"},
+		{ID: 22, SliceName: "Pipeline Duration"},
+		{ID: 23, SliceName: "Scraper Volume"},
+		{ID: 24, SliceName: "LLM Failures"},
+	})
+	if diags.HasError() {
+		t.Fatalf("expected flatten to succeed, got diagnostics: %v", diags)
+	}
+
+	var got []int64
+	diags = chartIDs.ElementsAs(context.Background(), &got, false)
+	if diags.HasError() {
+		t.Fatalf("expected flattened chart_ids to decode, got diagnostics: %v", diags)
+	}
+
+	want := []int64{24, 19, 22, 21, 23, 20}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d chart ids, got %#v", len(want), got)
+	}
+
+	for index := range want {
+		if got[index] != want[index] {
+			t.Fatalf("expected chart_ids %v, got %v", want, got)
+		}
+	}
+}
+
+func TestInt64ListValueFromChartsSortsIDs(t *testing.T) {
+	t.Parallel()
+
+	chartIDs, diags := int64ListValueFromCharts(context.Background(), []supersetclient.DashboardChart{
+		{ID: 22, SliceName: "Revenue"},
+		{ID: 11, SliceName: "Orders"},
+	})
+	if diags.HasError() {
+		t.Fatalf("expected flatten to succeed, got diagnostics: %v", diags)
+	}
+
+	var got []int64
+	diags = chartIDs.ElementsAs(context.Background(), &got, false)
+	if diags.HasError() {
+		t.Fatalf("expected flattened chart_ids to decode, got diagnostics: %v", diags)
+	}
+
+	want := []int64{11, 22}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d chart ids, got %#v", len(want), got)
+	}
+
+	for index := range want {
+		if got[index] != want[index] {
+			t.Fatalf("expected chart_ids %v, got %v", want, got)
+		}
+	}
+}

@@ -101,6 +101,26 @@ func TestAccDashboardResourceNativeFilters(t *testing.T) {
 	})
 }
 
+func TestAccDashboardResourcePreservesChartIDOrder(t *testing.T) {
+	databaseName := fmt.Sprintf("tfacc-dashboard-order-db-%d", time.Now().UnixNano())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckDashboardChartDatasetAndDatabaseDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccDashboardResourceChartOrderConfig(databaseName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("superset_dashboard.test", "chart_ids.#", "2"),
+					resource.TestCheckResourceAttrPair("superset_dashboard.test", "chart_ids.0", "superset_chart.second", "id"),
+					resource.TestCheckResourceAttrPair("superset_dashboard.test", "chart_ids.1", "superset_chart.first", "id"),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckDashboardChartDatasetAndDatabaseDestroy(state *terraform.State) error {
 	client, err := testAccSupersetClient()
 	if err != nil {
@@ -396,6 +416,110 @@ resource "superset_dashboard" "test" {
   slug            = %q
   published       = true
   chart_ids       = [superset_chart.test.id]
-%s}
+%s
+}
 `, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI(), databaseName, databaseName, nativeFiltersBlock)
+}
+
+func testAccDashboardResourceChartOrderConfig(databaseName string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "superset_database" "test" {
+  database_name  = %q
+  sqlalchemy_uri = %q
+}
+
+resource "superset_dataset" "test" {
+  database_id           = superset_database.test.id
+  schema                = "analytics"
+  table_name            = "events"
+  main_dttm_col         = "created_at"
+  filter_select_enabled = true
+}
+
+locals {
+  datasource_uid = format("%%d__table", superset_dataset.test.id)
+}
+
+resource "superset_chart" "first" {
+  slice_name    = "Dashboard order first"
+  datasource_id = superset_dataset.test.id
+  viz_type      = "table"
+  params = jsonencode({
+    datasource = local.datasource_uid
+    viz_type   = "table"
+  })
+}
+
+resource "superset_chart" "second" {
+  slice_name    = "Dashboard order second"
+  datasource_id = superset_dataset.test.id
+  viz_type      = "table"
+  params = jsonencode({
+    datasource = local.datasource_uid
+    viz_type   = "table"
+  })
+}
+
+resource "superset_dashboard" "test" {
+  dashboard_title = %q
+  slug            = %q
+  published       = true
+  chart_ids       = [superset_chart.second.id, superset_chart.first.id]
+
+  position_json = jsonencode({
+    DASHBOARD_VERSION_KEY = "v2"
+    ROOT_ID = {
+      children = ["GRID_ID"]
+      id       = "ROOT_ID"
+      type     = "ROOT"
+    }
+    GRID_ID = {
+      children = ["ROW-1"]
+      id       = "GRID_ID"
+      parents  = ["ROOT_ID"]
+      type     = "GRID"
+    }
+    HEADER_ID = {
+      id   = "HEADER_ID"
+      meta = { text = %q }
+      type = "HEADER"
+    }
+    "ROW-1" = {
+      children = ["CHART-SECOND", "CHART-FIRST"]
+      id       = "ROW-1"
+      meta     = { "0" = "ROOT_ID", background = "BACKGROUND_TRANSPARENT" }
+      parents  = ["ROOT_ID", "GRID_ID"]
+      type     = "ROW"
+    }
+    "CHART-SECOND" = {
+      children = []
+      id       = "CHART-SECOND"
+      meta = {
+        chartId   = superset_chart.second.id
+        height    = 50
+        sliceName = superset_chart.second.slice_name
+        uuid      = superset_chart.second.uuid
+        width     = 6
+      }
+      parents = ["ROOT_ID", "GRID_ID", "ROW-1"]
+      type    = "CHART"
+    }
+    "CHART-FIRST" = {
+      children = []
+      id       = "CHART-FIRST"
+      meta = {
+        chartId   = superset_chart.first.id
+        height    = 50
+        sliceName = superset_chart.first.slice_name
+        uuid      = superset_chart.first.uuid
+        width     = 6
+      }
+      parents = ["ROOT_ID", "GRID_ID", "ROW-1"]
+      type    = "CHART"
+    }
+  })
+}
+`, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI(), databaseName, databaseName, databaseName)
 }
