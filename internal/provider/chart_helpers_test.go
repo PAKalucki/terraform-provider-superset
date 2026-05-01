@@ -64,3 +64,49 @@ func TestFlattenChartModelNormalizesJSON(t *testing.T) {
 		t.Fatalf("expected cache timeout to be populated, got %d", got)
 	}
 }
+
+func TestFlattenChartModelPreservesDatasourceTypeWhenOmittedByAPI(t *testing.T) {
+	t.Parallel()
+
+	current := chartModel{
+		DatasourceType: types.StringValue("table"),
+	}
+
+	state, diags := flattenChartModel(current, &supersetclient.Chart{
+		ID:           7,
+		SliceName:    "Orders",
+		VizType:      "table",
+		Params:       `{"viz_type":"table"}`,
+		DatasourceID: 11,
+	})
+	if diags.HasError() {
+		t.Fatalf("expected flatten to succeed, got diagnostics: %v", diags)
+	}
+
+	if got := state.DatasourceType.ValueString(); got != "table" {
+		t.Fatalf("expected datasource_type to remain table, got %q", got)
+	}
+}
+
+func TestFlattenChartModelPreservesDatasourceIDWhenOmittedByAPI(t *testing.T) {
+	t.Parallel()
+
+	current := chartModel{
+		DatasourceID:   types.Int64Value(56761),
+		DatasourceType: types.StringValue("table"),
+	}
+
+	state, diags := flattenChartModel(current, &supersetclient.Chart{
+		ID:        7,
+		SliceName: "Orders",
+		VizType:   "table",
+		Params:    `{"viz_type":"table"}`,
+	})
+	if diags.HasError() {
+		t.Fatalf("expected flatten to succeed, got diagnostics: %v", diags)
+	}
+
+	if got := state.DatasourceID.ValueInt64(); got != 56761 {
+		t.Fatalf("expected datasource_id to remain 56761, got %d", got)
+	}
+}
