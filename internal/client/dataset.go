@@ -15,6 +15,7 @@ type Dataset struct {
 	Database             DatasetDatabase `json:"database"`
 	TableName            string          `json:"table_name,omitempty"`
 	Schema               string          `json:"schema,omitempty"`
+	SQL                  string          `json:"sql,omitempty"`
 	Description          string          `json:"description,omitempty"`
 	MainDttmCol          string          `json:"main_dttm_col,omitempty"`
 	FilterSelectEnabled  *bool           `json:"filter_select_enabled,omitempty"`
@@ -77,6 +78,7 @@ type DatasetCreateRequest struct {
 	Database  int64   `json:"database"`
 	TableName string  `json:"table_name"`
 	Schema    *string `json:"schema,omitempty"`
+	SQL       *string `json:"sql,omitempty"`
 }
 
 type DatasetUpdateRequest struct {

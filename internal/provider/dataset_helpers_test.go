@@ -23,6 +23,24 @@ func TestNeedsDatasetUpdate(t *testing.T) {
 	}
 }
 
+func TestExpandDatasetCreateRequestIncludesSQL(t *testing.T) {
+	t.Parallel()
+
+	request, diags := expandDatasetCreateRequest(datasetModel{
+		DatabaseID: types.Int64Value(1),
+		TableName:  types.StringValue("my_virtual_dataset_name"),
+		Schema:     types.StringValue("public"),
+		SQL:        types.StringValue("SELECT col1, col2 FROM my_physical_table WHERE condition = true"),
+	})
+	if diags.HasError() {
+		t.Fatalf("expected create request, got diagnostics: %v", diags)
+	}
+
+	if request.SQL == nil || *request.SQL == "" {
+		t.Fatalf("expected sql to be included in create request, got %#v", request.SQL)
+	}
+}
+
 func TestExpandDatasetUpdateRequestMatchesExistingColumnAndMetricIDs(t *testing.T) {
 	t.Parallel()
 
@@ -101,6 +119,7 @@ func TestFlattenDatasetResourceModelRefreshesManagedFields(t *testing.T) {
 	state, diags := flattenDatasetResourceModel(context.Background(), datasetModel{
 		DatabaseID:          types.Int64Value(12),
 		TableName:           types.StringValue("events"),
+		SQL:                 types.StringValue("SELECT * FROM events"),
 		FilterSelectEnabled: types.BoolValue(true),
 		Columns:             columns,
 		Metrics:             metrics,
@@ -109,6 +128,7 @@ func TestFlattenDatasetResourceModelRefreshesManagedFields(t *testing.T) {
 		UUID:                "03b2c25a-86a0-42d8-82fe-8bf726c3bcff",
 		TableName:           "events",
 		Database:            supersetclient.DatasetDatabase{ID: 12, DatabaseName: "analytics"},
+		SQL:                 "SELECT id, created_at FROM events",
 		Description:         "remote description",
 		FilterSelectEnabled: boolPtr(true),
 		Columns: []supersetclient.DatasetColumn{
@@ -132,6 +152,10 @@ func TestFlattenDatasetResourceModelRefreshesManagedFields(t *testing.T) {
 
 	if got := state.Description.ValueString(); got != "remote description" {
 		t.Fatalf("expected description to refresh from Superset, got %q", got)
+	}
+
+	if got := state.SQL.ValueString(); got != "SELECT id, created_at FROM events" {
+		t.Fatalf("expected sql to refresh from Superset, got %q", got)
 	}
 
 	if !state.FilterSelectEnabled.ValueBool() {

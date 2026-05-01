@@ -40,6 +40,15 @@ func TestDatasetResourceSchemaRequiresReplaceForIdentityAttributes(t *testing.T)
 	if !hasStringPlanModifier(tableNameAttr.PlanModifiers, stringplanmodifier.RequiresReplace()) {
 		t.Fatal("expected table_name to require replacement")
 	}
+
+	sqlAttr, ok := resp.Schema.Attributes["sql"].(resourceschema.StringAttribute)
+	if !ok {
+		t.Fatal("expected sql string attribute")
+	}
+
+	if !hasStringPlanModifier(sqlAttr.PlanModifiers, stringplanmodifier.RequiresReplace()) {
+		t.Fatal("expected sql to require replacement")
+	}
 }
 
 func hasInt64PlanModifier(modifiers []planmodifier.Int64, target planmodifier.Int64) bool {

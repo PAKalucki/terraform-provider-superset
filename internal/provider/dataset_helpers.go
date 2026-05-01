@@ -48,6 +48,7 @@ type datasetModel struct {
 	DatabaseName         types.String `tfsdk:"database_name"`
 	TableName            types.String `tfsdk:"table_name"`
 	Schema               types.String `tfsdk:"schema"`
+	SQL                  types.String `tfsdk:"sql"`
 	Description          types.String `tfsdk:"description"`
 	MainDttmCol          types.String `tfsdk:"main_dttm_col"`
 	FilterSelectEnabled  types.Bool   `tfsdk:"filter_select_enabled"`
@@ -110,6 +111,7 @@ func expandDatasetCreateRequest(data datasetModel) (supersetclient.DatasetCreate
 		Database:  databaseID,
 		TableName: tableName,
 		Schema:    stringPointerValue(data.Schema),
+		SQL:       stringPointerValue(data.SQL),
 	}, diags
 }
 
@@ -201,6 +203,7 @@ func flattenDatasetResourceModel(ctx context.Context, current datasetModel, remo
 	}
 
 	state.Schema = stringTypeValue(remote.Schema)
+	state.SQL = managedStringValue(current.SQL, remote.SQL)
 	state.Description = stringTypeValue(remote.Description)
 	state.MainDttmCol = stringTypeValue(remote.MainDttmCol)
 	state.FilterSelectEnabled = managedDatasetBoolValue(current.FilterSelectEnabled, remote.FilterSelectEnabled)
@@ -235,6 +238,7 @@ func flattenDatasetDataSourceModel(ctx context.Context, remote *supersetclient.D
 		DatabaseName:         stringTypeValue(remote.Database.DatabaseName),
 		TableName:            stringTypeValue(remote.TableName),
 		Schema:               stringTypeValue(remote.Schema),
+		SQL:                  stringTypeValue(remote.SQL),
 		Description:          stringTypeValue(remote.Description),
 		MainDttmCol:          stringTypeValue(remote.MainDttmCol),
 		FilterSelectEnabled:  boolTypeValue(remote.FilterSelectEnabled),

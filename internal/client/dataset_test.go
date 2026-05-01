@@ -8,6 +8,29 @@ import (
 	"testing"
 )
 
+func TestDatasetCreateRequestMarshalJSONIncludesSQL(t *testing.T) {
+	t.Parallel()
+
+	payload, err := json.Marshal(DatasetCreateRequest{
+		Database:  1,
+		TableName: "my_virtual_dataset_name",
+		Schema:    stringPtr("public"),
+		SQL:       stringPtr("SELECT col1, col2 FROM my_physical_table WHERE condition = true"),
+	})
+	if err != nil {
+		t.Fatalf("expected create request to marshal, got error: %v", err)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(payload, &body); err != nil {
+		t.Fatalf("expected create request JSON to decode, got error: %v", err)
+	}
+
+	if got := body["sql"]; got != "SELECT col1, col2 FROM my_physical_table WHERE condition = true" {
+		t.Fatalf("expected sql to be present in create payload, got %#v", got)
+	}
+}
+
 func TestDatasetUpdateRequestMarshalJSONIncludesNullsForManagedClears(t *testing.T) {
 	t.Parallel()
 
@@ -199,4 +222,8 @@ func TestListDatasetsPaginates(t *testing.T) {
 	if len(requestedPages) != 2 || requestedPages[0] != "0" || requestedPages[1] != "1" {
 		t.Fatalf("expected pagination to request pages 0 and 1, got %#v", requestedPages)
 	}
+}
+
+func stringPtr(value string) *string {
+	return &value
 }

@@ -2,12 +2,12 @@
 page_title: "superset_dataset Resource - superset"
 subcategory: ""
 description: |-
-  Manages a Superset physical dataset.
+  Manages a Superset dataset.
 ---
 
 # superset_dataset (Resource)
 
-Manages a Superset physical dataset backed by a Superset database connection.
+Manages a Superset dataset backed by a Superset database connection. Configure `sql` to create a virtual dataset.
 
 When `columns` or `metrics` are configured, they are authoritative and replace the corresponding collection in Superset. Omit either attribute to leave that collection unmanaged by Terraform.
 
@@ -77,6 +77,7 @@ resource "superset_dataset" "events" {
 - `metrics` (Attributes List) Authoritative list of dataset metrics when configured.
 - `normalize_columns` (Boolean) Whether Superset should normalize columns on create or update.
 - `schema` (String) Dataset schema name.
+- `sql` (String) Optional SQL query used to create a virtual dataset.
 
 ### Read-Only
 

@@ -79,6 +79,13 @@ func (r *DatasetResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:            true,
 				MarkdownDescription: "Dataset schema name.",
 			},
+			"sql": schema.StringAttribute{
+				Optional:            true,
+				MarkdownDescription: "Optional SQL query used to create a virtual dataset.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			"description": schema.StringAttribute{
 				Optional:            true,
 				MarkdownDescription: "Dataset description.",
