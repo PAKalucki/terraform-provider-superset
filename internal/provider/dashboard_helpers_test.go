@@ -197,6 +197,29 @@ func TestFlattenDashboardResourceModelRefreshesManagedNativeFilters(t *testing.T
 	}
 }
 
+func TestFlattenDashboardResourceModelPreservesManagedPositionJSONWhenOnlyChartUUIDDiffers(t *testing.T) {
+	t.Parallel()
+
+	currentPositionJSON := `{"CHART-1":{"children":[],"id":"CHART-1","meta":{"chartId":83798,"height":50,"sliceName":"Sales chart","uuid":null,"width":4},"parents":["ROOT_ID","GRID_ID","ROW-1"],"type":"CHART"},"DASHBOARD_VERSION_KEY":"v2","GRID_ID":{"children":["ROW-1"],"id":"GRID_ID","parents":["ROOT_ID"],"type":"GRID"},"HEADER_ID":{"id":"HEADER_ID","meta":{"text":"Operations dashboard"},"type":"HEADER"},"ROOT_ID":{"children":["GRID_ID"],"id":"ROOT_ID","type":"ROOT"},"ROW-1":{"children":["CHART-1"],"id":"ROW-1","meta":{"0":"ROOT_ID","background":"BACKGROUND_TRANSPARENT"},"parents":["ROOT_ID","GRID_ID"],"type":"ROW"}}`
+
+	state, diags := flattenDashboardResourceModel(context.Background(), dashboardModel{
+		PositionJSON: types.StringValue(currentPositionJSON),
+	}, &supersetclient.Dashboard{
+		ID:             7,
+		UUID:           "fef350f4-d046-404c-b6c8-2713af6334c8",
+		DashboardTitle: "Operations",
+		URL:            "/superset/dashboard/operations/",
+		PositionJSON:   `{"CHART-1":{"children":[],"id":"CHART-1","meta":{"chartId":83798,"height":50,"sliceName":"Sales chart","uuid":"11645747-002d-44ed-937c-24866e2eb227","width":4},"parents":["ROOT_ID","GRID_ID","ROW-1"],"type":"CHART"},"DASHBOARD_VERSION_KEY":"v2","GRID_ID":{"children":["ROW-1"],"id":"GRID_ID","parents":["ROOT_ID"],"type":"GRID"},"HEADER_ID":{"id":"HEADER_ID","meta":{"text":"Operations dashboard"},"type":"HEADER"},"ROOT_ID":{"children":["GRID_ID"],"id":"ROOT_ID","type":"ROOT"},"ROW-1":{"children":["CHART-1"],"id":"ROW-1","meta":{"0":"ROOT_ID","background":"BACKGROUND_TRANSPARENT"},"parents":["ROOT_ID","GRID_ID"],"type":"ROW"}}`,
+	}, nil)
+	if diags.HasError() {
+		t.Fatalf("expected flatten to succeed, got diagnostics: %v", diags)
+	}
+
+	if got := state.PositionJSON.ValueString(); got != currentPositionJSON {
+		t.Fatalf("expected managed position_json to be preserved, got %q", got)
+	}
+}
+
 func TestFlattenDashboardChartIDsPreservesManagedOrder(t *testing.T) {
 	t.Parallel()
 

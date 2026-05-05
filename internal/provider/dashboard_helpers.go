@@ -645,7 +645,61 @@ func managedDashboardPositionValue(current types.String, remote string) types.St
 		return types.StringNull()
 	}
 
+	if !normalized.IsNull() && positionsEquivalentIgnoringChartUUID(current.ValueString(), normalized.ValueString()) {
+		return current
+	}
+
 	return normalized
+}
+
+func positionsEquivalentIgnoringChartUUID(current string, remote string) bool {
+	currentNormalized, ok := normalizeDashboardPositionIgnoringChartUUID(current)
+	if !ok {
+		return false
+	}
+
+	remoteNormalized, ok := normalizeDashboardPositionIgnoringChartUUID(remote)
+	if !ok {
+		return false
+	}
+
+	return currentNormalized == remoteNormalized
+}
+
+func normalizeDashboardPositionIgnoringChartUUID(raw string) (string, bool) {
+	if strings.TrimSpace(raw) == "" {
+		return "", true
+	}
+
+	var position map[string]any
+	if err := json.Unmarshal([]byte(raw), &position); err != nil {
+		return "", false
+	}
+
+	for _, rawNode := range position {
+		node, ok := rawNode.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		if strings.TrimSpace(stringFromAny(node["type"])) != "CHART" {
+			continue
+		}
+
+		meta, ok := node["meta"].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		delete(meta, "uuid")
+	}
+
+	normalized, err := json.Marshal(position)
+	if err != nil {
+		return "", false
+	}
+
+	return string(normalized), true
 }
 
 func normalizeDashboardNativeFilterConfiguration(value types.String) (types.String, diag.Diagnostics) {
