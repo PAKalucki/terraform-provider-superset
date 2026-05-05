@@ -22,11 +22,12 @@ const (
 )
 
 type Config struct {
-	Endpoint    string
-	Username    string
-	Password    string
-	AccessToken string
-	HTTPClient  *http.Client
+	Endpoint      string
+	Username      string
+	Password      string
+	AccessToken   string
+	LoginProvider string
+	HTTPClient    *http.Client
 }
 
 type Client struct {
@@ -34,6 +35,7 @@ type Client struct {
 	httpClient *http.Client
 	username   string
 	password   string
+	loginProvider string
 
 	mu          sync.Mutex
 	accessToken string
@@ -76,6 +78,11 @@ func New(config Config) (*Client, error) {
 		return nil, errors.New("authentication requires either access_token or username and password, not both")
 	}
 
+	loginProvider := strings.TrimSpace(config.LoginProvider)
+	if loginProvider == "" {
+		loginProvider = defaultLoginProvider
+	}
+
 	httpClient := config.HTTPClient
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 30 * time.Second}
@@ -84,11 +91,12 @@ func New(config Config) (*Client, error) {
 	httpClient = cloneHTTPClient(httpClient)
 
 	return &Client{
-		baseURL:     endpoint,
-		httpClient:  httpClient,
-		username:    username,
-		password:    password,
-		accessToken: accessToken,
+		baseURL:       endpoint,
+		httpClient:    httpClient,
+		username:      username,
+		password:      password,
+		accessToken:   accessToken,
+		loginProvider: loginProvider,
 	}, nil
 }
 
@@ -122,7 +130,7 @@ func (c *Client) Authenticate(ctx context.Context) error {
 	}{
 		Username: c.username,
 		Password: c.password,
-		Provider: defaultLoginProvider,
+		Provider: c.loginProvider,
 	}
 
 	if err := c.execute(ctx, http.MethodPost, loginPath, loginReq, &loginResp, "", false, ""); err != nil {
