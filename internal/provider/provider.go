@@ -25,11 +25,12 @@ var _ provider.Provider = &SupersetProvider{}
 var _ provider.ProviderWithValidateConfig = &SupersetProvider{}
 
 const (
-	providerEndpointEnv    = "SUPERSET_ENDPOINT"
-	providerURLEnv         = "SUPERSET_URL"
-	providerUsernameEnv    = "SUPERSET_USERNAME"
-	providerPasswordEnv    = "SUPERSET_PASSWORD"
-	providerAccessTokenEnv = "SUPERSET_ACCESS_TOKEN"
+	providerEndpointEnv      = "SUPERSET_ENDPOINT"
+	providerURLEnv           = "SUPERSET_URL"
+	providerUsernameEnv      = "SUPERSET_USERNAME"
+	providerPasswordEnv      = "SUPERSET_PASSWORD"
+	providerAccessTokenEnv   = "SUPERSET_ACCESS_TOKEN"
+	providerLoginProviderEnv = "SUPERSET_LOGIN_PROVIDER"
 )
 
 // SupersetProvider defines the provider implementation.
@@ -42,10 +43,11 @@ type SupersetProvider struct {
 
 // SupersetProviderModel describes the provider data model.
 type SupersetProviderModel struct {
-	Endpoint    types.String `tfsdk:"endpoint"`
-	Username    types.String `tfsdk:"username"`
-	Password    types.String `tfsdk:"password"`
-	AccessToken types.String `tfsdk:"access_token"`
+	Endpoint      types.String `tfsdk:"endpoint"`
+	Username      types.String `tfsdk:"username"`
+	Password      types.String `tfsdk:"password"`
+	AccessToken   types.String `tfsdk:"access_token"`
+	LoginProvider types.String `tfsdk:"login_provider"`
 }
 
 func (p *SupersetProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -74,6 +76,10 @@ func (p *SupersetProvider) Schema(ctx context.Context, req provider.SchemaReques
 				MarkdownDescription: "Superset API bearer token. Configure this instead of `username` and `password` when a token is already available. When omitted, the provider uses `SUPERSET_ACCESS_TOKEN`.",
 				Optional:            true,
 				Sensitive:           true,
+			},
+			"login_provider": schema.StringAttribute{
+				MarkdownDescription: "Superset login provider sent to `/api/v1/security/login`. Defaults to `db`. Set to `ldap` when Superset is configured for LDAP authentication. When omitted, the provider uses `SUPERSET_LOGIN_PROVIDER`.",
+				Optional:            true,
 			},
 		},
 	}
@@ -109,10 +115,11 @@ func (p *SupersetProvider) Configure(ctx context.Context, req provider.Configure
 	}
 
 	client, err := supersetclient.New(supersetclient.Config{
-		Endpoint:    stringValue(data.Endpoint),
-		Username:    stringValue(data.Username),
-		Password:    stringValue(data.Password),
-		AccessToken: stringValue(data.AccessToken),
+		Endpoint:      stringValue(data.Endpoint),
+		Username:      stringValue(data.Username),
+		Password:      stringValue(data.Password),
+		AccessToken:   stringValue(data.AccessToken),
+		LoginProvider: stringValue(data.LoginProvider),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -226,7 +233,8 @@ func validateProviderModel(data SupersetProviderModel) diag.Diagnostics {
 
 func resolveProviderModel(data SupersetProviderModel) SupersetProviderModel {
 	resolved := SupersetProviderModel{
-		Endpoint: getEnvOrDefault(data.Endpoint, providerEndpointEnv, providerURLEnv),
+		Endpoint:      getEnvOrDefault(data.Endpoint, providerEndpointEnv, providerURLEnv),
+		LoginProvider: getEnvOrDefault(data.LoginProvider, providerLoginProviderEnv),
 	}
 
 	switch {

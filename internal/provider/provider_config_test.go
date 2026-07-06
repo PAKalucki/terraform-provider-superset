@@ -87,68 +87,75 @@ func TestSupersetProviderValidateConfig(t *testing.T) {
 		{
 			name: "access token authentication",
 			config: SupersetProviderModel{
-				Endpoint:    types.StringValue("https://superset.example.com"),
-				AccessToken: types.StringValue("token"),
-				Username:    types.StringNull(),
-				Password:    types.StringNull(),
+				Endpoint:      types.StringValue("https://superset.example.com"),
+				AccessToken:   types.StringValue("token"),
+				Username:      types.StringNull(),
+				Password:      types.StringNull(),
+				LoginProvider: types.StringNull(),
 			},
 		},
 		{
 			name: "username and password authentication",
 			config: SupersetProviderModel{
-				Endpoint:    types.StringValue("https://superset.example.com"),
-				Username:    types.StringValue("admin"),
-				Password:    types.StringValue("secret"),
-				AccessToken: types.StringNull(),
+				Endpoint:      types.StringValue("https://superset.example.com"),
+				Username:      types.StringValue("admin"),
+				Password:      types.StringValue("secret"),
+				AccessToken:   types.StringNull(),
+				LoginProvider: types.StringNull(),
 			},
 		},
 		{
 			name: "missing endpoint",
 			config: SupersetProviderModel{
-				Endpoint:    types.StringNull(),
-				AccessToken: types.StringValue("token"),
-				Username:    types.StringNull(),
-				Password:    types.StringNull(),
+				Endpoint:      types.StringNull(),
+				AccessToken:   types.StringValue("token"),
+				Username:      types.StringNull(),
+				Password:      types.StringNull(),
+				LoginProvider: types.StringNull(),
 			},
 			wantError: "endpoint must be configured",
 		},
 		{
 			name: "missing authentication",
 			config: SupersetProviderModel{
-				Endpoint:    types.StringValue("https://superset.example.com"),
-				AccessToken: types.StringNull(),
-				Username:    types.StringNull(),
-				Password:    types.StringNull(),
+				Endpoint:      types.StringValue("https://superset.example.com"),
+				AccessToken:   types.StringNull(),
+				Username:      types.StringNull(),
+				Password:      types.StringNull(),
+				LoginProvider: types.StringNull(),
 			},
 			wantError: "Configure either `access_token` or `username` and `password`",
 		},
 		{
 			name: "partial username and password",
 			config: SupersetProviderModel{
-				Endpoint:    types.StringValue("https://superset.example.com"),
-				Username:    types.StringValue("admin"),
-				Password:    types.StringNull(),
-				AccessToken: types.StringNull(),
+				Endpoint:      types.StringValue("https://superset.example.com"),
+				Username:      types.StringValue("admin"),
+				Password:      types.StringNull(),
+				AccessToken:   types.StringNull(),
+				LoginProvider: types.StringNull(),
 			},
 			wantError: "`username` and `password` must both be configured",
 		},
 		{
 			name: "conflicting authentication methods",
 			config: SupersetProviderModel{
-				Endpoint:    types.StringValue("https://superset.example.com"),
-				Username:    types.StringValue("admin"),
-				Password:    types.StringValue("secret"),
-				AccessToken: types.StringValue("token"),
+				Endpoint:      types.StringValue("https://superset.example.com"),
+				Username:      types.StringValue("admin"),
+				Password:      types.StringValue("secret"),
+				AccessToken:   types.StringValue("token"),
+				LoginProvider: types.StringNull(),
 			},
 			wantError: "`access_token` cannot be combined",
 		},
 		{
 			name: "invalid endpoint",
 			config: SupersetProviderModel{
-				Endpoint:    types.StringValue("not-a-url"),
-				AccessToken: types.StringValue("token"),
-				Username:    types.StringNull(),
-				Password:    types.StringNull(),
+				Endpoint:      types.StringValue("not-a-url"),
+				AccessToken:   types.StringValue("token"),
+				Username:      types.StringNull(),
+				Password:      types.StringNull(),
+				LoginProvider: types.StringNull(),
 			},
 			wantError: "endpoint must be a valid URL",
 		},
@@ -189,10 +196,11 @@ func TestSupersetProviderConfigureBuildsClient(t *testing.T) {
 	p.Schema(ctx, frameworkprovider.SchemaRequest{}, &schemaResp)
 
 	config := testProviderConfig(t, schemaResp.Schema, SupersetProviderModel{
-		Endpoint:    types.StringValue("https://superset.example.com"),
-		AccessToken: types.StringValue("token"),
-		Username:    types.StringNull(),
-		Password:    types.StringNull(),
+		Endpoint:      types.StringValue("https://superset.example.com"),
+		AccessToken:   types.StringValue("token"),
+		Username:      types.StringNull(),
+		Password:      types.StringNull(),
+		LoginProvider: types.StringNull(),
 	})
 
 	resp := &frameworkprovider.ConfigureResponse{}
@@ -236,10 +244,11 @@ func TestSupersetProviderValidateConfigWithEnvFallback(t *testing.T) {
 	t.Setenv("SUPERSET_ACCESS_TOKEN", "env-token")
 
 	config := testProviderConfig(t, schemaResp.Schema, SupersetProviderModel{
-		Endpoint:    types.StringNull(),
-		AccessToken: types.StringNull(),
-		Username:    types.StringNull(),
-		Password:    types.StringNull(),
+		Endpoint:      types.StringNull(),
+		AccessToken:   types.StringNull(),
+		Username:      types.StringNull(),
+		Password:      types.StringNull(),
+		LoginProvider: types.StringNull(),
 	})
 
 	resp := &frameworkprovider.ValidateConfigResponse{}
@@ -263,10 +272,11 @@ func TestSupersetProviderValidateConfigConfigAuthTakesPrecedenceOverEnv(t *testi
 	t.Setenv("SUPERSET_PASSWORD", "env-secret")
 
 	config := testProviderConfig(t, schemaResp.Schema, SupersetProviderModel{
-		Endpoint:    types.StringValue("https://config.example.com"),
-		AccessToken: types.StringValue("config-token"),
-		Username:    types.StringNull(),
-		Password:    types.StringNull(),
+		Endpoint:      types.StringValue("https://config.example.com"),
+		AccessToken:   types.StringValue("config-token"),
+		Username:      types.StringNull(),
+		Password:      types.StringNull(),
+		LoginProvider: types.StringNull(),
 	})
 
 	resp := &frameworkprovider.ValidateConfigResponse{}
@@ -289,10 +299,11 @@ func TestSupersetProviderValidateConfigConfigUsernamePasswordTakePrecedenceOverE
 	t.Setenv("SUPERSET_ACCESS_TOKEN", "env-token")
 
 	config := testProviderConfig(t, schemaResp.Schema, SupersetProviderModel{
-		Endpoint:    types.StringValue("https://config.example.com"),
-		AccessToken: types.StringNull(),
-		Username:    types.StringValue("config-admin"),
-		Password:    types.StringValue("config-secret"),
+		Endpoint:      types.StringValue("https://config.example.com"),
+		AccessToken:   types.StringNull(),
+		Username:      types.StringValue("config-admin"),
+		Password:      types.StringValue("config-secret"),
+		LoginProvider: types.StringNull(),
 	})
 
 	resp := &frameworkprovider.ValidateConfigResponse{}
@@ -315,10 +326,11 @@ func TestSupersetProviderValidateConfigMergesConfigAndEnvUsernamePassword(t *tes
 	t.Setenv("SUPERSET_PASSWORD", "env-secret")
 
 	config := testProviderConfig(t, schemaResp.Schema, SupersetProviderModel{
-		Endpoint:    types.StringNull(),
-		AccessToken: types.StringNull(),
-		Username:    types.StringValue("config-admin"),
-		Password:    types.StringNull(),
+		Endpoint:      types.StringNull(),
+		AccessToken:   types.StringNull(),
+		Username:      types.StringValue("config-admin"),
+		Password:      types.StringNull(),
+		LoginProvider: types.StringNull(),
 	})
 
 	resp := &frameworkprovider.ValidateConfigResponse{}
@@ -341,10 +353,11 @@ func TestSupersetProviderConfigureBuildsClientFromEnvFallback(t *testing.T) {
 	t.Setenv("SUPERSET_ACCESS_TOKEN", "env-token")
 
 	config := testProviderConfig(t, schemaResp.Schema, SupersetProviderModel{
-		Endpoint:    types.StringNull(),
-		AccessToken: types.StringNull(),
-		Username:    types.StringNull(),
-		Password:    types.StringNull(),
+		Endpoint:      types.StringNull(),
+		AccessToken:   types.StringNull(),
+		Username:      types.StringNull(),
+		Password:      types.StringNull(),
+		LoginProvider: types.StringNull(),
 	})
 
 	resp := &frameworkprovider.ConfigureResponse{}
@@ -405,10 +418,11 @@ func testProviderConfig(t *testing.T, schema providerschema.Schema, model Supers
 	t.Helper()
 
 	objectValue := types.ObjectValueMust(providerConfigAttributeTypes(), map[string]attr.Value{
-		"endpoint":     model.Endpoint,
-		"username":     model.Username,
-		"password":     model.Password,
-		"access_token": model.AccessToken,
+		"endpoint":       model.Endpoint,
+		"username":       model.Username,
+		"password":       model.Password,
+		"access_token":   model.AccessToken,
+		"login_provider": model.LoginProvider,
 	})
 
 	rawValue, err := objectValue.ToTerraformValue(context.Background())
@@ -430,6 +444,7 @@ func clearProviderEnv(t *testing.T) {
 	t.Setenv(providerUsernameEnv, "")
 	t.Setenv(providerPasswordEnv, "")
 	t.Setenv(providerAccessTokenEnv, "")
+	t.Setenv(providerLoginProviderEnv, "")
 }
 
 func testSupersetProvider(t *testing.T) *SupersetProvider {
@@ -445,10 +460,11 @@ func testSupersetProvider(t *testing.T) *SupersetProvider {
 
 func providerConfigAttributeTypes() map[string]attr.Type {
 	return map[string]attr.Type{
-		"endpoint":     types.StringType,
-		"username":     types.StringType,
-		"password":     types.StringType,
-		"access_token": types.StringType,
+		"endpoint":       types.StringType,
+		"username":       types.StringType,
+		"password":       types.StringType,
+		"access_token":   types.StringType,
+		"login_provider": types.StringType,
 	}
 }
 

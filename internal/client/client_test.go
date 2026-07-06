@@ -178,6 +178,54 @@ func TestClientGetAuthenticatesOnceAndReusesToken(t *testing.T) {
 	}
 }
 
+func TestClientAuthenticateUsesConfiguredLoginProvider(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/security/login":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("expected to read login body, got %v", err)
+			}
+
+			if !strings.Contains(string(body), `"provider":"ldap"`) {
+				t.Fatalf("expected login body to contain provider:ldap, got %s", string(body))
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"access_token":"ldap-token"}`))
+		case "/api/v1/me/":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"username":"alice"}`))
+		default:
+			t.Fatalf("unexpected request path %q", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	c, err := New(Config{
+		Endpoint:      server.URL,
+		Username:      "alice",
+		Password:      "secret",
+		LoginProvider: "ldap",
+		HTTPClient:    server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("expected client, got error: %v", err)
+	}
+
+	var me map[string]string
+
+	if err := c.Get(context.Background(), "/api/v1/me/", &me); err != nil {
+		t.Fatalf("expected successful GET request, got error: %v", err)
+	}
+
+	if got := c.AccessToken(); got != "ldap-token" {
+		t.Fatalf("expected ldap-token, got %q", got)
+	}
+}
+
 func TestClientPostReturnsAPIError(t *testing.T) {
 	t.Parallel()
 

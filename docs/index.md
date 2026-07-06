@@ -14,12 +14,15 @@ The provider supports authentication with either:
 - `username` and `password` for API login
 - `access_token` when you already have a bearer token
 
+When authenticating with `username` and `password`, the `login_provider` attribute controls which authentication backend Superset uses. It defaults to `db` (local database). Set it to `ldap` when your Superset instance is configured for LDAP authentication.
+
 Provider configuration can be loaded from environment variables:
 
 - `SUPERSET_ENDPOINT` or `SUPERSET_URL` for `endpoint`
 - `SUPERSET_USERNAME` for `username`
 - `SUPERSET_PASSWORD` for `password`
 - `SUPERSET_ACCESS_TOKEN` for `access_token`
+- `SUPERSET_LOGIN_PROVIDER` for `login_provider`
 
 Terraform configuration takes precedence over environment variables, so you can override individual settings directly in the provider block.
 
@@ -63,5 +66,6 @@ provider "superset" {}
 
 - `access_token` (String, Sensitive) Superset API bearer token. Configure this instead of `username` and `password` when a token is already available. When omitted, the provider uses `SUPERSET_ACCESS_TOKEN`.
 - `endpoint` (String) Superset base URL, for example `https://superset.example.com`. When omitted, the provider uses `SUPERSET_ENDPOINT` or `SUPERSET_URL`.
+- `login_provider` (String) Superset login provider sent to `/api/v1/security/login`. Defaults to `db`. Set to `ldap` when Superset is configured for LDAP authentication. When omitted, the provider uses `SUPERSET_LOGIN_PROVIDER`.
 - `password` (String, Sensitive) Superset password used for API login. Configure with `username` when `access_token` is not provided. When omitted, the provider uses `SUPERSET_PASSWORD`.
 - `username` (String) Superset username used for API login. Configure with `password` when `access_token` is not provided. When omitted, the provider uses `SUPERSET_USERNAME`.
