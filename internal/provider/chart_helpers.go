@@ -179,8 +179,12 @@ func flattenChartModel(current chartModel, remote *supersetclient.Chart) (chartM
 	state.UUID = stringTypeValue(remote.UUID)
 	state.SliceName = stringTypeValue(remote.SliceName)
 	state.Description = stringTypeValue(remote.Description)
-	state.DatasourceID = types.Int64Value(remote.DatasourceID)
-	state.DatasourceType = stringTypeValue(remote.DatasourceType)
+	if remote.DatasourceID > 0 {
+		state.DatasourceID = types.Int64Value(remote.DatasourceID)
+	}
+	if strings.TrimSpace(remote.DatasourceType) != "" {
+		state.DatasourceType = stringTypeValue(remote.DatasourceType)
+	}
 	state.DatasourceName = stringTypeValue(remote.DatasourceNameText)
 	state.VizType = stringTypeValue(remote.VizType)
 	state.Params = params
