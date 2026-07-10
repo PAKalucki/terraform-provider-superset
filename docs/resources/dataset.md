@@ -77,7 +77,7 @@ resource "superset_dataset" "events" {
 - `metrics` (Attributes List) Authoritative list of dataset metrics when configured.
 - `normalize_columns` (Boolean) Whether Superset should normalize columns on create or update.
 - `schema` (String) Dataset schema name.
-- `sql` (String) Optional SQL query used to create a virtual dataset.
+- `sql` (String) Optional SQL query used to create a virtual dataset. Changing the query updates the dataset in place; adding or removing `sql` converts between virtual and physical datasets and forces replacement.
 
 ### Read-Only
 

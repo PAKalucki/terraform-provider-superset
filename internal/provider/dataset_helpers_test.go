@@ -41,6 +41,47 @@ func TestExpandDatasetCreateRequestIncludesSQL(t *testing.T) {
 	}
 }
 
+func TestExpandDatasetUpdateRequestIncludesSQLWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	request, diags := expandDatasetUpdateRequest(context.Background(), datasetModel{
+		DatabaseID: types.Int64Value(1),
+		TableName:  types.StringValue("my_virtual_dataset_name"),
+		SQL:        types.StringValue("SELECT col1, col2 FROM my_physical_table WHERE condition = true"),
+	}, &supersetclient.Dataset{
+		SQL: "SELECT col1 FROM my_physical_table",
+	})
+	if diags.HasError() {
+		t.Fatalf("expected update request, got diagnostics: %v", diags)
+	}
+
+	if !request.IncludeSQL {
+		t.Fatal("expected sql to be managed in update request")
+	}
+
+	if request.SQL == nil || *request.SQL != "SELECT col1, col2 FROM my_physical_table WHERE condition = true" {
+		t.Fatalf("expected updated sql in update request, got %#v", request.SQL)
+	}
+}
+
+func TestExpandDatasetUpdateRequestOmitsSQLWhenUnconfigured(t *testing.T) {
+	t.Parallel()
+
+	request, diags := expandDatasetUpdateRequest(context.Background(), datasetModel{
+		DatabaseID: types.Int64Value(1),
+		TableName:  types.StringValue("events"),
+	}, &supersetclient.Dataset{
+		SQL: "SELECT col1 FROM my_physical_table",
+	})
+	if diags.HasError() {
+		t.Fatalf("expected update request, got diagnostics: %v", diags)
+	}
+
+	if request.IncludeSQL {
+		t.Fatal("expected sql to stay unmanaged in update request when not configured")
+	}
+}
+
 func TestExpandDatasetUpdateRequestMatchesExistingColumnAndMetricIDs(t *testing.T) {
 	t.Parallel()
 
