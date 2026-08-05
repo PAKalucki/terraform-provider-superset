@@ -19,6 +19,7 @@ Implemented resources:
 - `superset_saved_query`
 - `superset_css_template`
 - `superset_annotation_layer`
+- `superset_api`
 
 Implemented data sources:
 
@@ -27,7 +28,8 @@ Implemented data sources:
 - `superset_chart`
 - `superset_dashboard`
 - `superset_role`
-- `superset_permission` data source
+- `superset_permission`
+- `superset_api`
 
 Tutorials for creating Terraform providers can be found on the [HashiCorp Developer](https://developer.hashicorp.com/terraform/tutorials/providers-plugin-framework) platform. _Terraform Plugin Framework specific guides are titled accordingly._
 
@@ -114,9 +116,11 @@ Users can be managed with `superset_user` when the Superset auth backend exposes
 
 Additional supported resources include `superset_saved_query`, `superset_css_template`, and `superset_annotation_layer`.
 
+For Superset API paths without dedicated provider support, use the `superset_api` data source for authenticated GET requests and the `superset_api` resource for authenticated POST or PUT operations. The generic resource does not infer a DELETE operation: refresh preserves its last response, and destroy removes only its Terraform state.
+
 For the local acceptance environment, the sample warehouse Postgres service is available to Superset at `warehouse:5432`.
 
-Import is supported for all managed resources. Resource-specific import commands and caveats are documented under [docs/resources](/home/prka/workspace/terraform-provider-superset/docs/resources).
+Import is supported for the dedicated object-managing resources. The generic `superset_api` operation resource cannot be imported. Resource-specific import commands and caveats are documented under [docs/resources](/home/prka/workspace/terraform-provider-superset/docs/resources).
 
 ## Developing the Provider
 

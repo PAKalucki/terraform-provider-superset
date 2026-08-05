@@ -148,6 +148,7 @@ func (p *SupersetProvider) Resources(ctx context.Context) []func() resource.Reso
 		NewSavedQueryResource,
 		NewCSSTemplateResource,
 		NewAnnotationLayerResource,
+		NewSupersetAPIResource,
 	}
 }
 
@@ -159,6 +160,7 @@ func (p *SupersetProvider) DataSources(ctx context.Context) []func() datasource.
 		NewDashboardDataSource,
 		NewRoleDataSource,
 		NewPermissionDataSource,
+		NewSupersetAPIDataSource,
 	}
 }
 

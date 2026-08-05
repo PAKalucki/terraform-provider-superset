@@ -38,6 +38,7 @@ Managed resources:
 - `superset_saved_query`
 - `superset_css_template`
 - `superset_annotation_layer`
+- `superset_api`
 
 Available data sources:
 
@@ -47,8 +48,9 @@ Available data sources:
 - `superset_dashboard`
 - `superset_role`
 - `superset_permission`
+- `superset_api`
 
-Import is supported for all managed resources. See the individual resource pages for import commands and any Superset API caveats.
+Import is supported for the dedicated object-managing resources. The generic `superset_api` resource represents an API operation and cannot be imported.
 
 The repository also includes a local Superset 6 docker-compose environment for acceptance testing, with default API credentials `admin` / `admin` at `http://127.0.0.1:8088`.
 
