@@ -48,6 +48,7 @@ type datasetModel struct {
 	DatabaseName         types.String `tfsdk:"database_name"`
 	TableName            types.String `tfsdk:"table_name"`
 	Schema               types.String `tfsdk:"schema"`
+	SQL                  types.String `tfsdk:"sql"`
 	Description          types.String `tfsdk:"description"`
 	MainDttmCol          types.String `tfsdk:"main_dttm_col"`
 	FilterSelectEnabled  types.Bool   `tfsdk:"filter_select_enabled"`
@@ -110,6 +111,7 @@ func expandDatasetCreateRequest(data datasetModel) (supersetclient.DatasetCreate
 		Database:  databaseID,
 		TableName: tableName,
 		Schema:    stringPointerValue(data.Schema),
+		SQL:       stringPointerValue(data.SQL),
 	}, diags
 }
 
@@ -148,6 +150,7 @@ func expandDatasetUpdateRequest(ctx context.Context, data datasetModel, current 
 		DatabaseID:                  databaseID,
 		TableName:                   tableName,
 		Schema:                      stringPointerValue(data.Schema),
+		SQL:                         stringPointerValue(data.SQL),
 		Description:                 stringPointerValue(data.Description),
 		MainDttmCol:                 stringPointerValue(data.MainDttmCol),
 		FilterSelectEnabled:         datasetBoolUpdateValue(data.FilterSelectEnabled, current.FilterSelectEnabled),
@@ -155,6 +158,7 @@ func expandDatasetUpdateRequest(ctx context.Context, data datasetModel, current 
 		AlwaysFilterMainDttm:        datasetBoolUpdateValue(data.AlwaysFilterMainDttm, current.AlwaysFilterMainDttm),
 		CacheTimeout:                int64PointerValue(data.CacheTimeout),
 		IncludeSchema:               includeManagedString(data.Schema, current.Schema),
+		IncludeSQL:                  hasStringValue(data.SQL),
 		IncludeDescription:          includeManagedString(data.Description, current.Description),
 		IncludeMainDttmCol:          includeManagedString(data.MainDttmCol, current.MainDttmCol),
 		IncludeFilterSelectEnabled:  includeManagedBool(data.FilterSelectEnabled, current.FilterSelectEnabled),
@@ -201,8 +205,11 @@ func flattenDatasetResourceModel(ctx context.Context, current datasetModel, remo
 	}
 
 	state.Schema = stringTypeValue(remote.Schema)
+	state.SQL = managedStringValue(current.SQL, remote.SQL)
 	state.Description = stringTypeValue(remote.Description)
-	state.MainDttmCol = stringTypeValue(remote.MainDttmCol)
+	// Superset auto-assigns main_dttm_col for virtual datasets, so only
+	// refresh it when configured to keep applied state consistent with plans.
+	state.MainDttmCol = managedStringValue(current.MainDttmCol, remote.MainDttmCol)
 	state.FilterSelectEnabled = managedDatasetBoolValue(current.FilterSelectEnabled, remote.FilterSelectEnabled)
 	state.NormalizeColumns = managedDatasetBoolValue(current.NormalizeColumns, remote.NormalizeColumns)
 	state.AlwaysFilterMainDttm = managedDatasetBoolValue(current.AlwaysFilterMainDttm, remote.AlwaysFilterMainDttm)
@@ -235,6 +242,7 @@ func flattenDatasetDataSourceModel(ctx context.Context, remote *supersetclient.D
 		DatabaseName:         stringTypeValue(remote.Database.DatabaseName),
 		TableName:            stringTypeValue(remote.TableName),
 		Schema:               stringTypeValue(remote.Schema),
+		SQL:                  stringTypeValue(remote.SQL),
 		Description:          stringTypeValue(remote.Description),
 		MainDttmCol:          stringTypeValue(remote.MainDttmCol),
 		FilterSelectEnabled:  boolTypeValue(remote.FilterSelectEnabled),

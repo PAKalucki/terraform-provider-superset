@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
@@ -67,6 +68,45 @@ func TestAccDatasetResource(t *testing.T) {
 				),
 			},
 			testAccImportStateStep("superset_dataset.test", "columns", "metrics"),
+		},
+	})
+}
+
+func TestAccVirtualDatasetResourceUpdatesSQLInPlace(t *testing.T) {
+	databaseName := fmt.Sprintf("tfacc-virtual-dataset-db-%d", time.Now().UnixNano())
+
+	initialSQL := "SELECT id, created_at FROM analytics.events"
+	updatedSQL := "SELECT id, event_name, created_at FROM analytics.events WHERE event_name IS NOT NULL"
+
+	var createdDatasetID string
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckDatasetAndDatabaseDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccVirtualDatasetResourceConfig(databaseName, initialSQL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("superset_dataset.test", "id"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "table_name", "events_virtual"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "sql", initialSQL),
+					testAccCaptureResourceID("superset_dataset.test", &createdDatasetID),
+				),
+			},
+			{
+				Config: testAccVirtualDatasetResourceConfig(databaseName, updatedSQL),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("superset_dataset.test", plancheck.ResourceActionUpdate),
+					},
+				},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("superset_dataset.test", "sql", updatedSQL),
+					testAccCheckResourceIDEquals("superset_dataset.test", &createdDatasetID),
+				),
+			},
+			testAccImportStateStep("superset_dataset.test", "sql"),
 		},
 	})
 }
@@ -245,6 +285,24 @@ resource "superset_dataset" "test" {
   ]
 }
 `, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI())
+}
+
+func testAccVirtualDatasetResourceConfig(databaseName string, sql string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "superset_database" "test" {
+  database_name  = %q
+  sqlalchemy_uri = %q
+}
+
+resource "superset_dataset" "test" {
+  database_id = superset_database.test.id
+  schema      = "analytics"
+  table_name  = "events_virtual"
+  sql         = %q
+}
+`, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI(), sql)
 }
 
 func testAccDatasetResourceOmittedColumnBoolsConfig(databaseName string) string {

@@ -15,6 +15,7 @@ type Dataset struct {
 	Database             DatasetDatabase `json:"database"`
 	TableName            string          `json:"table_name,omitempty"`
 	Schema               string          `json:"schema,omitempty"`
+	SQL                  string          `json:"sql,omitempty"`
 	Description          string          `json:"description,omitempty"`
 	MainDttmCol          string          `json:"main_dttm_col,omitempty"`
 	FilterSelectEnabled  *bool           `json:"filter_select_enabled,omitempty"`
@@ -77,12 +78,14 @@ type DatasetCreateRequest struct {
 	Database  int64   `json:"database"`
 	TableName string  `json:"table_name"`
 	Schema    *string `json:"schema,omitempty"`
+	SQL       *string `json:"sql,omitempty"`
 }
 
 type DatasetUpdateRequest struct {
 	DatabaseID           int64            `json:"database_id"`
 	TableName            string           `json:"table_name"`
 	Schema               *string          `json:"schema,omitempty"`
+	SQL                  *string          `json:"sql,omitempty"`
 	Description          *string          `json:"description,omitempty"`
 	MainDttmCol          *string          `json:"main_dttm_col,omitempty"`
 	FilterSelectEnabled  *bool            `json:"filter_select_enabled,omitempty"`
@@ -93,6 +96,7 @@ type DatasetUpdateRequest struct {
 	Metrics              *[]DatasetMetric `json:"metrics,omitempty"`
 
 	IncludeSchema               bool
+	IncludeSQL                  bool
 	IncludeDescription          bool
 	IncludeMainDttmCol          bool
 	IncludeFilterSelectEnabled  bool
@@ -199,6 +203,10 @@ func (r DatasetUpdateRequest) MarshalJSON() ([]byte, error) {
 
 	if r.IncludeSchema {
 		body["schema"] = nullableStringValue(r.Schema)
+	}
+
+	if r.IncludeSQL {
+		body["sql"] = nullableStringValue(r.SQL)
 	}
 
 	if r.IncludeDescription {

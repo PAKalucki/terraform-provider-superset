@@ -79,6 +79,17 @@ func (r *DatasetResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:            true,
 				MarkdownDescription: "Dataset schema name.",
 			},
+			"sql": schema.StringAttribute{
+				Optional:            true,
+				MarkdownDescription: "Optional SQL query used to create a virtual dataset. Changing the query updates the dataset in place; adding or removing `sql` converts between virtual and physical datasets and forces replacement.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplaceIf(
+						datasetSQLRequiresReplace,
+						datasetSQLRequiresReplaceDescription,
+						datasetSQLRequiresReplaceDescription,
+					),
+				},
+			},
 			"description": schema.StringAttribute{
 				Optional:            true,
 				MarkdownDescription: "Dataset description.",
@@ -195,6 +206,20 @@ func (r *DatasetResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 		},
 	}
+}
+
+const datasetSQLRequiresReplaceDescription = "Adding or removing `sql` converts the dataset between virtual and physical, which Superset cannot do in place. Changing the query of an existing virtual dataset is applied in place through the Superset update API."
+
+// datasetSQLRequiresReplace forces replacement only when `sql` transitions
+// between configured and unconfigured (virtual <-> physical conversion).
+// Editing the query of an existing virtual dataset updates it in place so the
+// dataset ID and downstream chart or dashboard references are preserved.
+func datasetSQLRequiresReplace(ctx context.Context, req planmodifier.StringRequest, resp *stringplanmodifier.RequiresReplaceIfFuncResponse) {
+	if req.PlanValue.IsUnknown() {
+		return
+	}
+
+	resp.RequiresReplace = hasStringValue(req.StateValue) != hasStringValue(req.PlanValue)
 }
 
 func (r *DatasetResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
