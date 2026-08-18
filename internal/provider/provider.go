@@ -57,7 +57,7 @@ func (p *SupersetProvider) Metadata(ctx context.Context, req provider.MetadataRe
 
 func (p *SupersetProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Terraform provider for Apache Superset.",
+		MarkdownDescription: "Terraform provider for Apache Superset 6.0.0 and newer.",
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{
 				MarkdownDescription: "Superset base URL, for example `https://superset.example.com`. When omitted, the provider uses `SUPERSET_ENDPOINT` or `SUPERSET_URL`.",

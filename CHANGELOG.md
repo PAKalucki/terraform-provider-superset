@@ -1,5 +1,10 @@
 ## Unreleased
 
+FEATURES:
+
+- Support Apache Superset 6.1.0 while retaining 6.0.0 as the minimum supported release.
+- Run acceptance tests against both supported Superset releases and allow future versions to be selected with `SUPERSET_VERSION`.
+
 ## 0.0.8 (2026-08-05)
 
 FEATURES:

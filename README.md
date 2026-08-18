@@ -5,7 +5,7 @@ This repository contains a [Terraform](https://www.terraform.io) provider for Ap
 - Provider implementation under `internal/provider/`
 - Resource and data source documentation under `docs/`
 - Runnable examples under `examples/`
-- A local Superset 6 acceptance environment under `docker_compose/`
+- A version-selectable Superset acceptance environment under `docker_compose/`
 
 Implemented resources:
 
@@ -37,6 +37,7 @@ Tutorials for creating Terraform providers can be found on the [HashiCorp Develo
 
 - [Terraform](https://developer.hashicorp.com/terraform/downloads) >= 1.0
 - [Go](https://golang.org/doc/install) >= 1.24
+- [Apache Superset](https://superset.apache.org/) >= 6.0.0
 
 ## Building The Provider
 
@@ -137,7 +138,7 @@ Comprehensive end-to-end examples are available in:
 
 ## Acceptance Test Environment
 
-The repository includes a local Superset 6.0.0 docker-compose environment for acceptance tests.
+The repository includes a version-selectable docker-compose environment for acceptance tests. Superset 6.0.0 is the minimum supported release, 6.1.0 is the default local test version, and CI runs the full suite against both versions.
 
 Default test environment settings:
 
@@ -153,6 +154,7 @@ Useful commands:
 make testenv-up
 make testenv-token
 make testacc
+SUPERSET_VERSION=6.0.0 make testacc
 make testenv-down
 make testenv-reset
 ```
@@ -163,5 +165,8 @@ Environment variables used by acceptance tests:
 - `SUPERSET_USERNAME`
 - `SUPERSET_PASSWORD`
 - `SUPERSET_ACCESS_TOKEN` (optional alternative to username/password)
+- `SUPERSET_VERSION` (Superset image version used by the local test environment; defaults to `6.1.0`)
 
 `make testacc` starts the local docker-compose environment if needed, waits for `/health` plus API login readiness, and then runs the Go acceptance suite with the default local credentials.
+
+Run `make testenv-reset` when switching between Superset versions locally so each version starts with a compatible metadata database. To add coverage for a future Superset release, append it to the `superset-version` matrix in `.github/workflows/test.yml`; keep 6.0.0 in the matrix as the compatibility floor.

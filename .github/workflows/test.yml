@@ -13,9 +13,19 @@ concurrency:
 
 jobs:
   test:
-    name: Unit And Acceptance
+    name: Unit And Acceptance / Superset ${{ matrix.superset-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep the minimum supported release and append newer releases here.
+        superset-version:
+          - "6.0.0"
+          - "6.1.0"
+
+    env:
+      SUPERSET_VERSION: ${{ matrix.superset-version }}
 
     steps:
       - name: Checkout

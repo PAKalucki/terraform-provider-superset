@@ -35,7 +35,7 @@ services:
       - ./warehouse-init.sql:/docker-entrypoint-initdb.d/warehouse-init.sql:ro
 
   superset-init:
-    image: apache/superset:6.0.0-dev
+    image: apache/superset:${SUPERSET_VERSION:-6.1.0}-dev
     container_name: superset-provider-init
     depends_on:
       db:
@@ -66,7 +66,7 @@ services:
     restart: "no"
 
   superset:
-    image: apache/superset:6.0.0-dev
+    image: apache/superset:${SUPERSET_VERSION:-6.1.0}-dev
     container_name: superset-provider-app
     depends_on:
       db:

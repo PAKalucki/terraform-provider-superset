@@ -7,6 +7,9 @@ endif
 SUPERSET_URL ?= $(SUPERSET_ENDPOINT)
 SUPERSET_USERNAME ?= admin
 SUPERSET_PASSWORD ?= admin
+SUPERSET_VERSION ?= 6.1.0
+
+export SUPERSET_VERSION
 
 build:
 	go build -v ./...
@@ -44,6 +47,6 @@ testacc: testenv-up
 	SUPERSET_URL=$(SUPERSET_URL) \
 	SUPERSET_USERNAME=$(SUPERSET_USERNAME) \
 	SUPERSET_PASSWORD=$(SUPERSET_PASSWORD) \
-	go test -v -cover -timeout 120m ./...
+	go test -count=1 -v -cover -timeout 120m ./...
 
 .PHONY: fmt lint test testacc build install generate testenv-up testenv-down testenv-reset testenv-token

@@ -7,7 +7,7 @@ description: |-
 
 # superset Provider
 
-Terraform provider for Apache Superset 6.x.
+Terraform provider for Apache Superset 6.0.0 and newer.
 
 The provider supports authentication with either:
 
@@ -52,7 +52,7 @@ Available data sources:
 
 Import is supported for the dedicated object-managing resources. The generic `superset_api` resource represents an API operation and cannot be imported.
 
-The repository also includes a local Superset 6 docker-compose environment for acceptance testing, with default API credentials `admin` / `admin` at `http://127.0.0.1:8088`.
+The minimum supported Superset release is 6.0.0. The repository's version-selectable docker-compose environment defaults to Superset 6.1.0, and CI runs the acceptance suite against both 6.0.0 and 6.1.0. Its default API credentials are `admin` / `admin` at `http://127.0.0.1:8088`.
 
 
 ## Example Usage
