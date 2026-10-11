@@ -96,6 +96,67 @@ func TestAccDatasetResourcePreservesOmittedColumnBoolsOnCreate(t *testing.T) {
 	})
 }
 
+func TestAccDatasetResourcePreservesAutomaticDatetime(t *testing.T) {
+	databaseName := fmt.Sprintf("tfacc-dataset-datetime-%d", time.Now().UnixNano())
+	checkDatetime := func(expected string) resource.TestCheckFunc {
+		return func(state *terraform.State) error {
+			client, err := testAccSupersetClient()
+			if err != nil {
+				return err
+			}
+			id, err := strconv.ParseInt(state.RootModule().Resources["superset_dataset.test"].Primary.ID, 10, 64)
+			if err != nil {
+				return err
+			}
+			dataset, err := client.GetDataset(context.Background(), id)
+			if err != nil {
+				return err
+			}
+			if dataset.MainDttmCol != expected {
+				return fmt.Errorf("expected remote main_dttm_col %q, got %q", expected, dataset.MainDttmCol)
+			}
+			return nil
+		}
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckDatasetAndDatabaseDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccDatasetResourceAutomaticDatetimeConfig(databaseName, "Initial description", false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckNoResourceAttr("superset_dataset.test", "main_dttm_col"),
+					checkDatetime("created_at"),
+				),
+			},
+			{
+				Config: testAccDatasetResourceAutomaticDatetimeConfig(databaseName, "Updated description", false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("superset_dataset.test", "description", "Updated description"),
+					resource.TestCheckNoResourceAttr("superset_dataset.test", "main_dttm_col"),
+					checkDatetime("created_at"),
+				),
+			},
+			{
+				Config: testAccDatasetResourceAutomaticDatetimeConfig(databaseName, "Updated description", true),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("superset_dataset.test", "main_dttm_col", "created_at"),
+					checkDatetime("created_at"),
+				),
+			},
+			{
+				Config: testAccDatasetResourceAutomaticDatetimeConfig(databaseName, "Updated description", false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckNoResourceAttr("superset_dataset.test", "main_dttm_col"),
+					checkDatetime(""),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckDatasetAndDatabaseDestroy(state *terraform.State) error {
 	client, err := testAccSupersetClient()
 	if err != nil {
@@ -287,4 +348,27 @@ resource "superset_dataset" "test" {
   ]
 }
 `, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI())
+}
+
+func testAccDatasetResourceAutomaticDatetimeConfig(databaseName string, description string, manageDatetime bool) string {
+	mainDttmCol := ""
+	if manageDatetime {
+		mainDttmCol = `main_dttm_col = "created_at"`
+	}
+	return fmt.Sprintf(`
+%s
+
+resource "superset_database" "test" {
+  database_name  = %q
+  sqlalchemy_uri = %q
+}
+
+resource "superset_dataset" "test" {
+  database_id = superset_database.test.id
+  schema      = "analytics"
+  table_name  = "events"
+  description = %q
+  %s
+}
+`, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI(), description, mainDttmCol)
 }

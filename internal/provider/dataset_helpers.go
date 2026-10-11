@@ -156,7 +156,7 @@ func expandDatasetUpdateRequest(ctx context.Context, data datasetModel, current 
 		CacheTimeout:                int64PointerValue(data.CacheTimeout),
 		IncludeSchema:               includeManagedString(data.Schema, current.Schema),
 		IncludeDescription:          includeManagedString(data.Description, current.Description),
-		IncludeMainDttmCol:          includeManagedString(data.MainDttmCol, current.MainDttmCol),
+		IncludeMainDttmCol:          !data.MainDttmCol.IsNull() && !data.MainDttmCol.IsUnknown(),
 		IncludeFilterSelectEnabled:  includeManagedBool(data.FilterSelectEnabled, current.FilterSelectEnabled),
 		IncludeNormalizeColumns:     includeManagedBool(data.NormalizeColumns, current.NormalizeColumns),
 		IncludeAlwaysFilterMainDttm: includeManagedBool(data.AlwaysFilterMainDttm, current.AlwaysFilterMainDttm),
@@ -202,7 +202,8 @@ func flattenDatasetResourceModel(ctx context.Context, current datasetModel, remo
 
 	state.Schema = stringTypeValue(remote.Schema)
 	state.Description = stringTypeValue(remote.Description)
-	state.MainDttmCol = stringTypeValue(remote.MainDttmCol)
+	// Superset can assign this automatically; only configured values are managed.
+	state.MainDttmCol = managedStringValue(current.MainDttmCol, remote.MainDttmCol)
 	state.FilterSelectEnabled = managedDatasetBoolValue(current.FilterSelectEnabled, remote.FilterSelectEnabled)
 	state.NormalizeColumns = managedDatasetBoolValue(current.NormalizeColumns, remote.NormalizeColumns)
 	state.AlwaysFilterMainDttm = managedDatasetBoolValue(current.AlwaysFilterMainDttm, remote.AlwaysFilterMainDttm)

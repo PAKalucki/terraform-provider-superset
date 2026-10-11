@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	supersetclient "terraform-provider-superset/internal/client"
@@ -20,6 +21,35 @@ func TestNeedsDatasetUpdate(t *testing.T) {
 		Description: types.StringValue("managed"),
 	}) {
 		t.Fatal("expected managed description to require update")
+	}
+}
+
+func TestExpandDatasetUpdateRequestPreservesUnmanagedMainDttmCol(t *testing.T) {
+	t.Parallel()
+
+	request, diags := expandDatasetUpdateRequest(context.Background(), datasetModel{
+		DatabaseID:  types.Int64Value(12),
+		TableName:   types.StringValue("events"),
+		Description: types.StringValue("Updated description"),
+	}, &supersetclient.Dataset{
+		MainDttmCol: "created_at",
+	})
+	if diags.HasError() {
+		t.Fatalf("expected update request, got diagnostics: %v", diags)
+	}
+
+	payload, err := json.Marshal(request)
+	if err != nil {
+		t.Fatalf("marshal update request: %v", err)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(payload, &body); err != nil {
+		t.Fatalf("decode update request: %v", err)
+	}
+
+	if value, included := body["main_dttm_col"]; included {
+		t.Fatalf("unrelated update must preserve the unmanaged datetime column, got main_dttm_col=%#v in %s", value, payload)
 	}
 }
 

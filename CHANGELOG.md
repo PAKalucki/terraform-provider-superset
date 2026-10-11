@@ -5,6 +5,10 @@ FEATURES:
 - Support Apache Superset 6.1.0 while retaining 6.0.0 as the minimum supported release.
 - Run acceptance tests against both supported Superset releases and allow future versions to be selected with `SUPERSET_VERSION`.
 
+BUG FIXES:
+
+- Preserve automatically assigned dataset datetime columns on create and unrelated updates, while still clearing a previously configured `main_dttm_col` when it is removed.
+
 ## 0.0.8 (2026-08-05)
 
 FEATURES:

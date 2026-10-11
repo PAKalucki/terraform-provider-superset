@@ -85,7 +85,7 @@ func (r *DatasetResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"main_dttm_col": schema.StringAttribute{
 				Optional:            true,
-				MarkdownDescription: "Main datetime column used by Superset.",
+				MarkdownDescription: "Main datetime column used by Superset. Omit to preserve the Superset-managed value; removing a previously configured value clears it.",
 			},
 			"filter_select_enabled": schema.BoolAttribute{
 				Optional:            true,
@@ -396,6 +396,11 @@ func (r *DatasetResource) Update(ctx context.Context, req resource.UpdateRequest
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// Clear only a previously managed value, preserving automatic assignments.
+	if data.MainDttmCol.IsNull() && hasStringValue(current.MainDttmCol) {
+		updateRequest.IncludeMainDttmCol = true
 	}
 
 	if err := r.client.UpdateDataset(ctx, current.ID.ValueInt64(), updateRequest); err != nil {

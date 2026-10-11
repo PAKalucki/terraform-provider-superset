@@ -73,7 +73,7 @@ resource "superset_dataset" "events" {
 - `columns` (Attributes List) Authoritative list of dataset columns when configured.
 - `description` (String) Dataset description.
 - `filter_select_enabled` (Boolean) Whether filter select is enabled for the dataset.
-- `main_dttm_col` (String) Main datetime column used by Superset.
+- `main_dttm_col` (String) Main datetime column used by Superset. Omit to preserve the Superset-managed value; removing a previously configured value clears it.
 - `metrics` (Attributes List) Authoritative list of dataset metrics when configured.
 - `normalize_columns` (Boolean) Whether Superset should normalize columns on create or update.
 - `schema` (String) Dataset schema name.
