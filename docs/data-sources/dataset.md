@@ -41,4 +41,5 @@ data "superset_dataset" "events" {
 - `main_dttm_col` (String) Main datetime column used by Superset.
 - `metrics` (Attributes List) Dataset metrics returned by Superset.
 - `normalize_columns` (Boolean) Whether Superset normalizes columns for the dataset.
+- `sql` (String) SQL query used by a virtual dataset, when present.
 - `uuid` (String) Superset dataset UUID.

@@ -8,6 +8,73 @@ import (
 	"testing"
 )
 
+func TestDatasetCreateRequestMarshalJSONIncludesSQL(t *testing.T) {
+	t.Parallel()
+
+	payload, err := json.Marshal(DatasetCreateRequest{
+		Database:  1,
+		TableName: "my_virtual_dataset_name",
+		Schema:    stringPtr("public"),
+		SQL:       stringPtr("SELECT col1, col2 FROM my_physical_table WHERE condition = true"),
+	})
+	if err != nil {
+		t.Fatalf("expected create request to marshal, got error: %v", err)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(payload, &body); err != nil {
+		t.Fatalf("expected create request JSON to decode, got error: %v", err)
+	}
+
+	if got := body["sql"]; got != "SELECT col1, col2 FROM my_physical_table WHERE condition = true" {
+		t.Fatalf("expected sql to be present in create payload, got %#v", got)
+	}
+}
+
+func TestDatasetUpdateRequestMarshalJSONIncludesSQLWhenManaged(t *testing.T) {
+	t.Parallel()
+
+	payload, err := json.Marshal(DatasetUpdateRequest{
+		DatabaseID: 1,
+		TableName:  "my_virtual_dataset_name",
+		SQL:        stringPtr("SELECT col1, col2 FROM my_physical_table WHERE condition = true"),
+		IncludeSQL: true,
+	})
+	if err != nil {
+		t.Fatalf("expected update request to marshal, got error: %v", err)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(payload, &body); err != nil {
+		t.Fatalf("expected update request JSON to decode, got error: %v", err)
+	}
+
+	if got := body["sql"]; got != "SELECT col1, col2 FROM my_physical_table WHERE condition = true" {
+		t.Fatalf("expected sql to be present in update payload, got %#v", got)
+	}
+}
+
+func TestDatasetUpdateRequestMarshalJSONOmitsSQLWhenUnmanaged(t *testing.T) {
+	t.Parallel()
+
+	payload, err := json.Marshal(DatasetUpdateRequest{
+		DatabaseID: 1,
+		TableName:  "events",
+	})
+	if err != nil {
+		t.Fatalf("expected update request to marshal, got error: %v", err)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(payload, &body); err != nil {
+		t.Fatalf("expected update request JSON to decode, got error: %v", err)
+	}
+
+	if _, ok := body["sql"]; ok {
+		t.Fatalf("expected sql to be omitted from update payload, got %#v", body["sql"])
+	}
+}
+
 func TestDatasetUpdateRequestMarshalJSONIncludesNullsForManagedClears(t *testing.T) {
 	t.Parallel()
 
@@ -199,4 +266,8 @@ func TestListDatasetsPaginates(t *testing.T) {
 	if len(requestedPages) != 2 || requestedPages[0] != "0" || requestedPages[1] != "1" {
 		t.Fatalf("expected pagination to request pages 0 and 1, got %#v", requestedPages)
 	}
+}
+
+func stringPtr(value string) *string {
+	return &value
 }
