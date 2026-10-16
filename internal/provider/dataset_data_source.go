@@ -58,6 +58,10 @@ func (d *DatasetDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 				Computed:            true,
 				MarkdownDescription: "Dataset schema name.",
 			},
+			"sql": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "SQL query used by a virtual dataset, when present.",
+			},
 			"description": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Dataset description.",

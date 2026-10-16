@@ -7,7 +7,10 @@ import (
 	"testing"
 	"time"
 
+	supersetclient "terraform-provider-superset/internal/client"
+
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
@@ -67,6 +70,115 @@ func TestAccDatasetResource(t *testing.T) {
 				),
 			},
 			testAccImportStateStep("superset_dataset.test", "columns", "metrics"),
+		},
+	})
+}
+
+func TestAccVirtualDatasetResourceUpdatesSQLInPlace(t *testing.T) {
+	databaseName := fmt.Sprintf("tfacc-virtual-dataset-db-%d", time.Now().UnixNano())
+
+	initialSQL := "SELECT id, created_at FROM analytics.events"
+	updatedSQL := "SELECT id, event_name, created_at FROM analytics.events WHERE event_name IS NOT NULL"
+
+	var createdDatasetID string
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckDatasetAndDatabaseDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccVirtualDatasetResourceConfig(databaseName, initialSQL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("superset_dataset.test", "id"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "table_name", "events_virtual"),
+					resource.TestCheckResourceAttr("superset_dataset.test", "sql", initialSQL),
+					testAccCaptureResourceID("superset_dataset.test", &createdDatasetID),
+				),
+			},
+			{
+				Config: testAccVirtualDatasetResourceConfig(databaseName, updatedSQL),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("superset_dataset.test", plancheck.ResourceActionUpdate),
+					},
+				},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("superset_dataset.test", "sql", updatedSQL),
+					testAccCheckResourceIDEquals("superset_dataset.test", &createdDatasetID),
+				),
+			},
+			testAccImportStateStep("superset_dataset.test"),
+		},
+	})
+}
+
+// TestAccVirtualDatasetResourceImportPreservesSQL adopts a pre-existing virtual
+// dataset with `terraform import`, keeps the imported state, and verifies that
+// a configuration matching the remote query plans no changes. If import drops
+// the remote SQL, the sql plan modifier treats the configured query as a
+// physical-to-virtual conversion and forces an unnecessary replacement.
+func TestAccVirtualDatasetResourceImportPreservesSQL(t *testing.T) {
+	databaseName := fmt.Sprintf("tfacc-virtual-dataset-import-db-%d", time.Now().UnixNano())
+	tableName := "events_virtual_adopted"
+	sql := "SELECT id, created_at FROM analytics.events"
+
+	var databaseID string
+	var existingDatasetID string
+
+	config := testAccAdoptedVirtualDatasetResourceConfig(databaseName, tableName, sql)
+
+	// The imported dataset only records its dependency on the database once an
+	// apply succeeds. If the test fails before that, Terraform may destroy the
+	// database before the dataset and leave both behind, so clean up explicitly.
+	t.Cleanup(func() { testAccDeleteDatasetAndDatabase(t, &existingDatasetID, &databaseID) })
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckDatasetAndDatabaseDestroy,
+		Steps: []resource.TestStep{
+			{
+				// Manage only the database so the dataset can be created outside Terraform.
+				Config: testAccDatabaseOnlyConfig(databaseName),
+				Check:  testAccCaptureResourceID("superset_database.test", &databaseID),
+			},
+			{
+				// Create the virtual dataset directly in Superset, then adopt it with terraform import.
+				PreConfig: func() {
+					existingDatasetID = testAccCreateVirtualDataset(t, databaseID, "analytics", tableName, sql)
+				},
+				Config:       config,
+				ResourceName: "superset_dataset.adopted",
+				ImportState:  true,
+				ImportStateIdFunc: func(*terraform.State) (string, error) {
+					return existingDatasetID, nil
+				},
+				ImportStatePersist: true,
+				ImportStateCheck: func(states []*terraform.InstanceState) error {
+					for _, state := range states {
+						if state.Ephemeral.Type == "superset_dataset" && state.ID == existingDatasetID {
+							return nil
+						}
+					}
+
+					return fmt.Errorf("imported state does not contain superset_dataset %s", existingDatasetID)
+				},
+			},
+			{
+				// The configuration matches the imported dataset, so the plan must be a no-op.
+				Config: config,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckResourceIDEquals("superset_dataset.adopted", &existingDatasetID),
+					resource.TestCheckResourceAttr("superset_dataset.adopted", "table_name", tableName),
+					resource.TestCheckResourceAttr("superset_dataset.adopted", "sql", sql),
+				),
+			},
 		},
 	})
 }
@@ -306,6 +418,112 @@ resource "superset_dataset" "test" {
   ]
 }
 `, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI())
+}
+
+func testAccVirtualDatasetResourceConfig(databaseName string, sql string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "superset_database" "test" {
+  database_name  = %q
+  sqlalchemy_uri = %q
+}
+
+resource "superset_dataset" "test" {
+  database_id = superset_database.test.id
+  schema      = "analytics"
+  table_name  = "events_virtual"
+  sql         = %q
+}
+`, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI(), sql)
+}
+
+func testAccDatabaseOnlyConfig(databaseName string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "superset_database" "test" {
+  database_name  = %q
+  sqlalchemy_uri = %q
+}
+`, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI())
+}
+
+func testAccAdoptedVirtualDatasetResourceConfig(databaseName string, tableName string, sql string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "superset_database" "test" {
+  database_name  = %q
+  sqlalchemy_uri = %q
+}
+
+resource "superset_dataset" "adopted" {
+  database_id = superset_database.test.id
+  schema      = "analytics"
+  table_name  = %q
+  sql         = %q
+}
+`, testAccProviderConfig(), databaseName, testAccWarehouseSQLAlchemyURI(), tableName, sql)
+}
+
+// testAccCreateVirtualDataset creates a virtual dataset directly through the
+// Superset API, simulating a dataset that pre-dates Terraform management.
+func testAccCreateVirtualDataset(t *testing.T, databaseID string, schema string, tableName string, sql string) string {
+	t.Helper()
+
+	client, err := testAccSupersetClient()
+	if err != nil {
+		t.Fatalf("configure Superset client: %v", err)
+	}
+
+	parsedDatabaseID, err := strconv.ParseInt(databaseID, 10, 64)
+	if err != nil {
+		t.Fatalf("parse database id %q: %v", databaseID, err)
+	}
+
+	datasetID, err := client.CreateDataset(context.Background(), supersetclient.DatasetCreateRequest{
+		Database:  parsedDatabaseID,
+		TableName: tableName,
+		Schema:    &schema,
+		SQL:       &sql,
+	})
+	if err != nil {
+		t.Fatalf("create virtual dataset outside Terraform: %v", err)
+	}
+
+	return strconv.FormatInt(datasetID, 10)
+}
+
+// testAccDeleteDatasetAndDatabase removes the dataset and then the database if
+// they still exist. Resources already removed by Terraform are ignored.
+func testAccDeleteDatasetAndDatabase(t *testing.T, datasetID *string, databaseID *string) {
+	t.Helper()
+
+	client, err := testAccSupersetClient()
+	if err != nil {
+		t.Logf("cleanup: configure Superset client: %v", err)
+		return
+	}
+
+	deleteByID := func(kind string, rawID string, deleteFunc func(context.Context, int64) error) {
+		if rawID == "" {
+			return
+		}
+
+		id, err := strconv.ParseInt(rawID, 10, 64)
+		if err != nil {
+			t.Logf("cleanup: parse %s id %q: %v", kind, rawID, err)
+			return
+		}
+
+		if err := deleteFunc(context.Background(), id); err != nil && !isSupersetNotFoundError(err) {
+			t.Logf("cleanup: delete %s %d: %v", kind, id, err)
+		}
+	}
+
+	deleteByID("dataset", *datasetID, client.DeleteDataset)
+	deleteByID("database", *databaseID, client.DeleteDatabase)
 }
 
 func testAccDatasetResourceOmittedColumnBoolsConfig(databaseName string) string {
